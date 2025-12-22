@@ -1,0 +1,326 @@
+{
+  "deployment_maps": {
+    "hammer_and_anvil": {
+      "name": "Hammer and Anvil",
+      "description": "Long table edges. Deployment zones are 12\" deep from each long edge.",
+      "battlefield_size": [44, 60],
+      "player_1_zone": {
+        "shape": "rectangle",
+        "bounds": {
+          "x_min": 0,
+          "x_max": 12,
+          "y_min": 0,
+          "y_max": 60
+        },
+        "description": "12\" from left edge"
+      },
+      "player_2_zone": {
+        "shape": "rectangle",
+        "bounds": {
+          "x_min": 32,
+          "x_max": 44,
+          "y_min": 0,
+          "y_max": 60
+        },
+        "description": "12\" from right edge"
+      },
+      "no_mans_land": {
+        "x_min": 12,
+        "x_max": 32,
+        "y_min": 0,
+        "y_max": 60
+      }
+    },
+
+    "dawn_of_war": {
+      "name": "Dawn of War",
+      "description": "Short table edges. Deployment zones are 12\" deep from each short edge.",
+      "battlefield_size": [44, 60],
+      "player_1_zone": {
+        "shape": "rectangle",
+        "bounds": {
+          "x_min": 0,
+          "x_max": 44,
+          "y_min": 0,
+          "y_max": 12
+        },
+        "description": "12\" from bottom edge"
+      },
+      "player_2_zone": {
+        "shape": "rectangle",
+        "bounds": {
+          "x_min": 0,
+          "x_max": 44,
+          "y_min": 48,
+          "y_max": 60
+        },
+        "description": "12\" from top edge"
+      },
+      "no_mans_land": {
+        "x_min": 0,
+        "x_max": 44,
+        "y_min": 12,
+        "y_max": 48
+      }
+    },
+
+    "search_and_destroy": {
+      "name": "Search and Destroy",
+      "description": "Diagonal deployment zones. 9\" from each corner.",
+      "battlefield_size": [44, 60],
+      "player_1_zone": {
+        "shape": "triangle",
+        "vertices": [
+          [0, 0],
+          [22, 0],
+          [0, 30]
+        ],
+        "description": "Bottom-left corner, 9\" diagonal"
+      },
+      "player_2_zone": {
+        "shape": "triangle",
+        "vertices": [
+          [44, 60],
+          [22, 60],
+          [44, 30]
+        ],
+        "description": "Top-right corner, 9\" diagonal"
+      },
+      "simplified_bounds": {
+        "player_1": {
+          "description": "Models must be within 9\" of bottom-left corner (0,0)",
+          "center": [0, 0],
+          "radius": 18
+        },
+        "player_2": {
+          "description": "Models must be within 9\" of top-right corner (44,60)",
+          "center": [44, 60],
+          "radius": 18
+        }
+      }
+    },
+
+    "sweeping_engagement": {
+      "name": "Sweeping Engagement",
+      "description": "Diagonal deployment, opposite corners from Search and Destroy.",
+      "battlefield_size": [44, 60],
+      "player_1_zone": {
+        "shape": "triangle",
+        "vertices": [
+          [0, 60],
+          [22, 60],
+          [0, 30]
+        ],
+        "description": "Top-left corner, 9\" diagonal"
+      },
+      "player_2_zone": {
+        "shape": "triangle",
+        "vertices": [
+          [44, 0],
+          [22, 0],
+          [44, 30]
+        ],
+        "description": "Bottom-right corner, 9\" diagonal"
+      },
+      "simplified_bounds": {
+        "player_1": {
+          "description": "Models must be within 9\" of top-left corner (0,60)",
+          "center": [0, 60],
+          "radius": 18
+        },
+        "player_2": {
+          "description": "Models must be within 9\" of bottom-right corner (44,0)",
+          "center": [44, 0],
+          "radius": 18
+        }
+      }
+    },
+
+    "tipping_point": {
+      "name": "Tipping Point",
+      "description": "Mirrored L-shaped deployment zones.",
+      "battlefield_size": [44, 60],
+      "player_1_zone": {
+        "shape": "compound",
+        "description": "L-shape covering bottom-left quadrant",
+        "bounds": {
+          "rectangles": [
+            {
+              "x_min": 0,
+              "x_max": 22,
+              "y_min": 0,
+              "y_max": 24
+            },
+            {
+              "x_min": 0,
+              "x_max": 12,
+              "y_min": 24,
+              "y_max": 36
+            }
+          ]
+        }
+      },
+      "player_2_zone": {
+        "shape": "compound",
+        "description": "L-shape covering top-right quadrant",
+        "bounds": {
+          "rectangles": [
+            {
+              "x_min": 22,
+              "x_max": 44,
+              "y_min": 36,
+              "y_max": 60
+            },
+            {
+              "x_min": 32,
+              "x_max": 44,
+              "y_min": 24,
+              "y_max": 36
+            }
+          ]
+        }
+      }
+    },
+
+    "crucible_of_battle": {
+      "name": "Crucible of Battle",
+      "description": "Narrow deployment zones on opposite short edges with central no man's land.",
+      "battlefield_size": [44, 60],
+      "player_1_zone": {
+        "shape": "rectangle",
+        "bounds": {
+          "x_min": 0,
+          "x_max": 44,
+          "y_min": 0,
+          "y_max": 9
+        },
+        "description": "9\" from bottom edge"
+      },
+      "player_2_zone": {
+        "shape": "rectangle",
+        "bounds": {
+          "x_min": 0,
+          "x_max": 44,
+          "y_min": 51,
+          "y_max": 60
+        },
+        "description": "9\" from top edge"
+      },
+      "no_mans_land": {
+        "x_min": 0,
+        "x_max": 44,
+        "y_min": 9,
+        "y_max": 51,
+        "description": "Large 42\" no man's land"
+      }
+    }
+  },
+
+  "objective_placements": {
+    "standard_5_objectives": {
+      "name": "Standard 5 Objectives",
+      "description": "Most common tournament setup - 1 center, 4 spread",
+      "objectives": [
+        {
+          "id": "center",
+          "position": [22, 30],
+          "value": 5,
+          "note": "Center objective"
+        },
+        {
+          "id": "left_mid",
+          "position": [11, 30],
+          "value": 5,
+          "note": "Left flank"
+        },
+        {
+          "id": "right_mid",
+          "position": [33, 30],
+          "value": 5,
+          "note": "Right flank"
+        },
+        {
+          "id": "player_1_home",
+          "position": [22, 15],
+          "value": 5,
+          "note": "Player 1 home objective"
+        },
+        {
+          "id": "player_2_home",
+          "position": [22, 45],
+          "value": 5,
+          "note": "Player 2 home objective"
+        }
+      ]
+    },
+
+    "diagonal_5_objectives": {
+      "name": "Diagonal 5 Objectives",
+      "description": "For Search and Destroy / Sweeping Engagement",
+      "objectives": [
+        {
+          "id": "center",
+          "position": [22, 30],
+          "value": 5
+        },
+        {
+          "id": "p1_near",
+          "position": [11, 15],
+          "value": 5
+        },
+        {
+          "id": "p2_near",
+          "position": [33, 45],
+          "value": 5
+        },
+        {
+          "id": "p1_flank",
+          "position": [33, 15],
+          "value": 5
+        },
+        {
+          "id": "p2_flank",
+          "position": [11, 45],
+          "value": 5
+        }
+      ]
+    },
+
+    "spread_6_objectives": {
+      "name": "Spread 6 Objectives",
+      "description": "Maximum objective count",
+      "objectives": [
+        {
+          "id": "center_bottom",
+          "position": [22, 20],
+          "value": 5
+        },
+        {
+          "id": "center_top",
+          "position": [22, 40],
+          "value": 5
+        },
+        {
+          "id": "left_bottom",
+          "position": [11, 20],
+          "value": 5
+        },
+        {
+          "id": "left_top",
+          "position": [11, 40],
+          "value": 5
+        },
+        {
+          "id": "right_bottom",
+          "position": [33, 20],
+          "value": 5
+        },
+        {
+          "id": "right_top",
+          "position": [33, 40],
+          "value": 5
+        }
+      ]
+    }
+  }
+}
