@@ -22,6 +22,9 @@ A statistical combat simulator for Warhammer 40k 10th Edition. Compare units fro
 - Points costs
 
 ### ⚔️ Combat Simulator
+- **Two modes available:**
+  - **Simple Mode:** Select single units with uniform squad sizes
+  - **Composite Squad Mode:** Build custom squads with multiple unit types
 - Select attacking and defending units from **any two armies**
 - Choose specific weapons to attack with
 - Simulates complete attack sequence:
@@ -31,8 +34,31 @@ A statistical combat simulator for Warhammer 40k 10th Edition. Compare units fro
   4. **Damage** - Calculates total damage dealt
 - Run 1-40,000 simulations for statistical accuracy
 - Handles dice notation (D6, 2D6, D6+2, etc.)
-- Squad sizes from 1-20 models
+- Squad sizes from 1-20 models per component
 - Tracks individual model kills
+
+### 🎖️ Composite Squad Builder (10th Edition)
+- **Build realistic squad compositions:**
+  - Mix multiple unit types in one squad
+  - Add leaders (characters) that attach to units
+  - Assign different weapons to different squad members
+  - Set individual model counts for each component
+- **Leader Attachment Rules:**
+  - Mark units as leaders (👑)
+  - Leaders grant their abilities to the entire squad
+  - View all leader abilities in an expandable panel
+- **Component Breakdown:**
+  - See damage contribution from each squad component
+  - Track which weapons are most effective
+  - Optimize mixed-weapon loadouts
+- **Examples:**
+  - Intercessor Squad + Lieutenant + Apothecary
+  - Plague Marines (5x boltgun, 2x plasma gun, 1x blight launcher)
+  - Deathwing Knights + Bladeguard Ancient
+- **Current Availability:**
+  - ✅ Combat Simulator tab (fully supported)
+  - ⏳ Matchup Matrix tab (coming soon)
+  - ℹ️ Use Simple Mode for bulk matchup testing
 
 ### 📊 Statistical Analysis
 - Average damage output

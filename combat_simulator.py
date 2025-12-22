@@ -46,6 +46,33 @@ class UnitProfile:
     invuln_save: str = ""
     abilities: List[str] = None
 
+@dataclass
+class SquadComponent:
+    """A single component in a composite squad (e.g., leader or unit type)"""
+    unit_name: str
+    model_count: int
+    selected_weapon: Optional[str] = None  # Specific weapon this component uses
+    is_leader: bool = False
+    unit_data: Optional[Dict] = None  # Full unit details from catalogue
+
+@dataclass
+class CompositeSquad:
+    """A squad composed of multiple unit types (leaders + regular units)"""
+    name: str  # Display name for this squad composition
+    components: List[SquadComponent]
+
+    def get_total_models(self) -> int:
+        """Total number of models in the squad"""
+        return sum(c.model_count for c in self.components)
+
+    def get_all_weapons(self) -> List[Tuple[str, str, int]]:
+        """Get all weapons in the squad: [(unit_name, weapon_name, model_count)]"""
+        weapons = []
+        for component in self.components:
+            if component.selected_weapon:
+                weapons.append((component.unit_name, component.selected_weapon, component.model_count))
+        return weapons
+
 @st.cache_data
 def discover_catalogues() -> List[Dict]:
     """Discover all available .cat files in the repository"""
@@ -277,11 +304,10 @@ def extract_detachments(_root, _ns, catalogue_name: str) -> List[Dict]:
 
     return detachments
 
-@st.cache_data
-def extract_unit_details(_root, _ns, unit_name: str) -> Dict:
-    """Extract complete details for a specific unit"""
+def _extract_unit_from_entry(entry, _ns) -> Dict:
+    """Helper function to extract unit data from a selectionEntry element"""
     unit_data = {
-        'name': unit_name,
+        'name': entry.get('name'),
         'profiles': [],
         'weapons': [],
         'abilities': [],
@@ -289,55 +315,92 @@ def extract_unit_details(_root, _ns, unit_name: str) -> Dict:
         'costs': {}
     }
 
-    # Find the unit entry
-    for entry in _root.findall('.//cat:sharedSelectionEntries/cat:selectionEntry', _ns):
-        if entry.get('name') == unit_name:
-            # Get costs
-            for cost in entry.findall('.//cat:cost', _ns):
-                cost_name = cost.get('name')
-                cost_value = cost.get('value', '0')
-                unit_data['costs'][cost_name] = cost_value
+    # Get costs
+    for cost in entry.findall('.//cat:cost', _ns):
+        cost_name = cost.get('name')
+        cost_value = cost.get('value', '0')
+        unit_data['costs'][cost_name] = cost_value
 
-            # Get profiles (unit stats)
-            for profile in entry.findall('.//cat:profile[@typeName="Unit"]', _ns):
-                profile_dict = {'name': profile.get('name')}
-                for char in profile.findall('.//cat:characteristic', _ns):
-                    profile_dict[char.get('name')] = char.text or ''
-                unit_data['profiles'].append(profile_dict)
+    # Get profiles (unit stats)
+    for profile in entry.findall('.//cat:profile[@typeName="Unit"]', _ns):
+        profile_dict = {'name': profile.get('name')}
+        for char in profile.findall('.//cat:characteristic', _ns):
+            profile_dict[char.get('name')] = char.text or ''
+        unit_data['profiles'].append(profile_dict)
 
-            # Get weapon profiles
-            for profile in entry.findall('.//cat:profile[@typeName="Ranged Weapons"]', _ns):
-                weapon = {'name': profile.get('name')}
-                for char in profile.findall('.//cat:characteristic', _ns):
-                    weapon[char.get('name')] = char.text or ''
-                unit_data['weapons'].append(weapon)
+    # Get weapon profiles
+    for profile in entry.findall('.//cat:profile[@typeName="Ranged Weapons"]', _ns):
+        weapon = {'name': profile.get('name')}
+        for char in profile.findall('.//cat:characteristic', _ns):
+            weapon[char.get('name')] = char.text or ''
+        unit_data['weapons'].append(weapon)
 
-            for profile in entry.findall('.//cat:profile[@typeName="Melee Weapons"]', _ns):
-                weapon = {'name': profile.get('name'), 'type': 'Melee'}
-                for char in profile.findall('.//cat:characteristic', _ns):
-                    weapon[char.get('name')] = char.text or ''
-                unit_data['weapons'].append(weapon)
+    for profile in entry.findall('.//cat:profile[@typeName="Melee Weapons"]', _ns):
+        weapon = {'name': profile.get('name'), 'type': 'Melee'}
+        for char in profile.findall('.//cat:characteristic', _ns):
+            weapon[char.get('name')] = char.text or ''
+        unit_data['weapons'].append(weapon)
 
-            # Get abilities
-            for rule in entry.findall('.//cat:rule', _ns):
-                ability = {
-                    'name': rule.get('name'),
-                    'description': ''
-                }
-                desc = rule.find('cat:description', _ns)
-                if desc is not None and desc.text:
-                    ability['description'] = desc.text
-                unit_data['abilities'].append(ability)
+    # Get abilities
+    for rule in entry.findall('.//cat:rule', _ns):
+        ability = {
+            'name': rule.get('name'),
+            'description': ''
+        }
+        desc = rule.find('cat:description', _ns)
+        if desc is not None and desc.text:
+            ability['description'] = desc.text
+        unit_data['abilities'].append(ability)
 
-            # Get keywords
-            for category in entry.findall('.//cat:categoryLink', _ns):
-                cat_name = category.get('name')
-                if cat_name:
-                    unit_data['keywords'].append(cat_name)
-
-            break
+    # Get keywords
+    for category in entry.findall('.//cat:categoryLink', _ns):
+        cat_name = category.get('name')
+        if cat_name:
+            unit_data['keywords'].append(cat_name)
 
     return unit_data
+
+@st.cache_data
+def extract_unit_details(_root, _ns, unit_name: str) -> Dict:
+    """
+    Extract complete details for a specific unit.
+    Searches both the current catalogue and linked catalogues.
+    """
+    # First, try to find the unit in the current catalogue
+    for entry in _root.findall('.//cat:sharedSelectionEntries/cat:selectionEntry', _ns):
+        if entry.get('name') == unit_name:
+            return _extract_unit_from_entry(entry, _ns)
+
+    # If not found, search in linked catalogues
+    from pathlib import Path
+    base_path = Path(__file__).parent
+
+    for cat_link in _root.findall('cat:catalogueLinks/cat:catalogueLink', _ns):
+        import_root = cat_link.get('importRootEntries', 'false')
+        if import_root == 'true':
+            linked_cat_name = cat_link.get('name')
+            try:
+                linked_file = base_path / f"{linked_cat_name}.cat"
+                if linked_file.exists():
+                    linked_tree = ET.parse(str(linked_file))
+                    linked_root = linked_tree.getroot()
+
+                    # Search for the unit in the linked catalogue
+                    for entry in linked_root.findall('.//cat:sharedSelectionEntries/cat:selectionEntry', _ns):
+                        if entry.get('name') == unit_name:
+                            return _extract_unit_from_entry(entry, _ns)
+            except Exception:
+                continue
+
+    # If still not found, return empty unit data
+    return {
+        'name': unit_name,
+        'profiles': [],
+        'weapons': [],
+        'abilities': [],
+        'keywords': [],
+        'costs': {}
+    }
 
 def parse_weapon_abilities(abilities_text: str) -> Dict[str, any]:
     """Parse weapon abilities string and extract special rules"""
@@ -1618,9 +1681,251 @@ def display_unit_panel(unit_data: Dict, title: str):
     if unit_data['costs']:
         st.write("**Costs:**", " | ".join([f"{k}: {v}" for k, v in unit_data['costs'].items()]))
 
+def simulate_composite_squad_attack(attacker_squad: CompositeSquad, defender_squad: CompositeSquad,
+                                   num_simulations: int, modifiers: Dict) -> Dict:
+    """
+    Simulate attacks from a composite squad against a defender squad.
+
+    For each component in the attacker squad:
+    - Find the weapon they're using
+    - Simulate attacks from that weapon with the component's model count
+    - Aggregate all results
+
+    Args:
+        attacker_squad: CompositeSquad with multiple unit types
+        defender_squad: CompositeSquad representing the defending unit(s)
+        num_simulations: Number of simulations to run
+        modifiers: Combat modifiers dictionary
+
+    Returns:
+        Aggregated simulation results across all attacker components
+    """
+    # Initialize aggregated results
+    total_results = {
+        'damage_per_simulation': [0] * num_simulations,
+        'models_killed_per_simulation': [0] * num_simulations,
+        'total_attacks': 0,
+        'hits': 0,
+        'critical_hits': 0,
+        'wounds': 0,
+        'critical_wounds': 0,
+        'failed_saves': 0,
+        'mortal_wounds': 0,
+        'fnp_saved': 0,
+        'total_damage': 0,
+        'models_killed': 0,
+        'calculation_log': [],
+        'component_breakdown': []  # Track each component's contribution
+    }
+
+    # Use the first defender component as the primary target
+    # In 10th edition, you allocate wounds to one model at a time
+    primary_defender = defender_squad.components[0]
+
+    # Simulate attacks from each attacker component
+    for component in attacker_squad.components:
+        if not component.selected_weapon or not component.unit_data:
+            continue
+
+        # Find the weapon data
+        weapon = next((w for w in component.unit_data['weapons'] if w['name'] == component.selected_weapon), None)
+        if not weapon:
+            continue
+
+        # Run simulation for this component
+        component_results = simulate_attack_sequence(
+            weapon,
+            component.unit_data,
+            primary_defender.unit_data,
+            num_simulations,
+            component.model_count,
+            defender_squad.get_total_models(),
+            modifiers
+        )
+
+        # Aggregate results
+        for i in range(num_simulations):
+            total_results['damage_per_simulation'][i] += component_results['damage_per_simulation'][i]
+            total_results['models_killed_per_simulation'][i] += component_results['models_killed_per_simulation'][i]
+
+        total_results['total_attacks'] += component_results['total_attacks']
+        total_results['hits'] += component_results['hits']
+        total_results['critical_hits'] += component_results['critical_hits']
+        total_results['wounds'] += component_results['wounds']
+        total_results['critical_wounds'] += component_results['critical_wounds']
+        total_results['failed_saves'] += component_results['failed_saves']
+        total_results['mortal_wounds'] += component_results['mortal_wounds']
+        total_results['fnp_saved'] += component_results.get('fnp_saved', 0)
+        total_results['total_damage'] += component_results['total_damage']
+        total_results['models_killed'] += component_results['models_killed']
+
+        # Store component breakdown
+        total_results['component_breakdown'].append({
+            'unit_name': component.unit_name,
+            'model_count': component.model_count,
+            'weapon': component.selected_weapon,
+            'avg_damage': component_results['total_damage'] / num_simulations,
+            'avg_kills': component_results['models_killed'] / num_simulations,
+        })
+
+        # Add to calculation log
+        total_results['calculation_log'].extend(component_results['calculation_log'])
+
+    return total_results
+
+def build_composite_squad_ui(army_root, army_ns, army_name: str, role: str = "Attacker") -> Optional[CompositeSquad]:
+    """
+    UI component for building a composite squad with multiple unit types.
+    Returns a CompositeSquad object or None if squad is empty.
+
+    Args:
+        army_root: XML root of the army catalogue
+        army_ns: XML namespace
+        army_name: Name of the army
+        role: "Attacker" or "Defender" for display purposes
+    """
+    st.subheader(f"🎖️ Build {role} Squad")
+
+    # Get available units
+    available_units_df = get_all_units(army_root, army_ns, army_name)
+    if len(available_units_df) == 0:
+        st.warning(f"No units available for {army_name}")
+        return None
+
+    # Initialize session state key for this squad's components
+    squad_key = f"{role.lower()}_squad_components"
+    if squad_key not in st.session_state:
+        st.session_state[squad_key] = []  # List of SquadComponent objects
+
+    # Section to add new components
+    with st.expander(f"➕ Add Unit to {role} Squad", expanded=len(st.session_state[squad_key]) == 0):
+        add_col1, add_col2, add_col3 = st.columns([3, 2, 1])
+
+        with add_col1:
+            # Search and filter units
+            search_term = st.text_input(f"Search {role} units", "", key=f"search_{role}")
+            filtered_units = available_units_df
+            if search_term:
+                filtered_units = filtered_units[filtered_units['name'].str.contains(search_term, case=False, na=False)]
+
+            selected_unit_name = st.selectbox(
+                f"Select unit to add",
+                options=filtered_units['name'].tolist(),
+                key=f"add_unit_{role}"
+            )
+
+        with add_col2:
+            model_count = st.number_input(
+                "Number of models",
+                min_value=1,
+                max_value=20,
+                value=5,
+                key=f"model_count_{role}"
+            )
+
+        with add_col3:
+            is_leader = st.checkbox(
+                "Leader?",
+                value=False,
+                key=f"is_leader_{role}",
+                help="In 10th Edition, leaders can attach to units"
+            )
+
+        # Get unit data to show available weapons
+        if selected_unit_name:
+            unit_data = extract_unit_details(army_root, army_ns, selected_unit_name)
+
+            if unit_data['weapons']:
+                weapon_names = [w['name'] for w in unit_data['weapons']]
+                selected_weapon = st.selectbox(
+                    "Weapon for this component",
+                    options=weapon_names,
+                    key=f"weapon_{role}"
+                )
+            else:
+                selected_weapon = None
+                st.info("This unit has no weapons listed")
+
+            # Add button
+            if st.button(f"➕ Add to Squad", key=f"add_btn_{role}"):
+                component = SquadComponent(
+                    unit_name=selected_unit_name,
+                    model_count=model_count,
+                    selected_weapon=selected_weapon,
+                    is_leader=is_leader,
+                    unit_data=unit_data
+                )
+                st.session_state[squad_key].append(component)
+                st.rerun()
+
+    # Display current squad composition
+    if st.session_state[squad_key]:
+        st.write(f"**Current {role} Squad Composition:**")
+
+        total_models = sum(c.model_count for c in st.session_state[squad_key])
+        total_points = sum(
+            int(c.unit_data.get('costs', {}).get('pts', 0)) * c.model_count
+            for c in st.session_state[squad_key]
+            if c.unit_data
+        )
+
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.metric("Total Models", total_models)
+        with col_info2:
+            st.metric("Estimated Points", total_points)
+
+        # List each component with remove button
+        for idx, component in enumerate(st.session_state[squad_key]):
+            comp_col1, comp_col2 = st.columns([5, 1])
+
+            with comp_col1:
+                leader_badge = "👑 " if component.is_leader else ""
+                weapon_info = f" - {component.selected_weapon}" if component.selected_weapon else ""
+                st.write(f"{leader_badge}**{component.unit_name}** x{component.model_count}{weapon_info}")
+
+            with comp_col2:
+                if st.button("🗑️", key=f"remove_{role}_{idx}", help="Remove this component"):
+                    st.session_state[squad_key].pop(idx)
+                    st.rerun()
+
+        # Show leader abilities that affect the squad
+        leaders = [c for c in st.session_state[squad_key] if c.is_leader]
+        if leaders:
+            with st.expander("👑 Leader Abilities (10th Edition Rules)"):
+                st.caption("In 10th Edition, attached leaders grant their abilities to the unit")
+                for leader in leaders:
+                    if leader.unit_data and leader.unit_data.get('abilities'):
+                        st.write(f"**{leader.unit_name}:**")
+                        for ability in leader.unit_data['abilities']:
+                            st.write(f"- *{ability['name']}*")
+                            if ability.get('description'):
+                                st.caption(ability['description'][:150] + "..." if len(ability['description']) > 150 else ability['description'])
+
+        # Clear all button
+        if st.button(f"🗑️ Clear All {role} Components", key=f"clear_all_{role}"):
+            st.session_state[squad_key] = []
+            st.rerun()
+
+        # Create CompositeSquad object
+        squad_name = f"{army_name} Custom Squad ({total_models} models)"
+        return CompositeSquad(name=squad_name, components=st.session_state[squad_key])
+
+    else:
+        st.info(f"No components added to {role} squad yet. Add units using the section above.")
+        return None
+
 def main():
     st.title("⚔️ Warhammer 40k Combat Simulator")
     st.markdown("Select any armies and simulate combat with statistical analysis")
+
+    # Initialize session state for composite squads
+    if 'attacker_squad' not in st.session_state:
+        st.session_state.attacker_squad = None  # Will be CompositeSquad or None
+    if 'defender_squad' not in st.session_state:
+        st.session_state.defender_squad = None
+    if 'use_composite_squads' not in st.session_state:
+        st.session_state.use_composite_squads = False  # Toggle between simple and composite mode
 
     # Discover all available catalogues
     available_catalogues = discover_catalogues()
@@ -1747,79 +2052,152 @@ def main():
         st.caption(f"{selected_army2}: Rev {army2_info['revision']}")
 
     # Main tabs
-    tab1, tab2, tab3 = st.tabs(["⚔️ Combat Simulator", "🎯 Unit Comparison", "📊 Benchmark Results"])
+    tab1, tab2, tab3, tab4 = st.tabs(["⚔️ Combat Simulator", "🎯 Unit Comparison", "📊 Benchmark Results", "🎲 Matchup Matrix"])
 
     with tab1:
         st.header("Combat Simulator")
         st.markdown(f"Simulate attacks from **{selected_army1}** units against **{selected_army2}** units")
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.subheader(f"⚔️ Attacker ({selected_army1})")
-            army1_units_sim = get_all_units(army1_root, army1_ns, selected_army1)
-            st.caption(f"Available units: {len(army1_units_sim)}")
-
-            if len(army1_units_sim) > 0:
-                attacker_name = st.selectbox(
-                    "Select attacking unit",
-                    # Sort units alphabetically
-                    options=sorted(army1_units_sim['name'].tolist()),
-                    key="attacker"
-                )
-
-                attacker_data = extract_unit_details(army1_root, army1_ns, attacker_name)
-                display_unit_panel(attacker_data, attacker_name)
+        # Toggle between simple and composite squad modes
+        squad_mode_col1, squad_mode_col2 = st.columns([3, 1])
+        with squad_mode_col1:
+            use_composite = st.toggle(
+                "🎖️ Composite Squad Mode",
+                value=st.session_state.use_composite_squads,
+                help="Build squads with multiple unit types (leaders + troops with different weapons)",
+                key="composite_toggle"
+            )
+            st.session_state.use_composite_squads = use_composite
+        with squad_mode_col2:
+            if use_composite:
+                st.info("Build custom squads")
             else:
-                st.error(f"No {selected_army1} units loaded")
-
-        with col2:
-            st.subheader(f"🛡️ Defender ({selected_army2})")
-            army2_units_sim = get_all_units(army2_root, army2_ns, selected_army2)
-            st.caption(f"Available units: {len(army2_units_sim)}")
-
-            if len(army2_units_sim) > 0:
-                defender_name = st.selectbox(
-                    "Select defending unit",
-                    # Sort units alphabetically
-                    options=sorted(army2_units_sim['name'].tolist()),
-                    key="defender"
-                )
-
-                defender_data = extract_unit_details(army2_root, army2_ns, defender_name)
-                display_unit_panel(defender_data, defender_name)
-            else:
-                st.error(f"No {selected_army2} units loaded")
+                st.info("Simple mode")
 
         st.divider()
 
-        # Weapon selection
-        if attacker_data['weapons']:
-            st.subheader("⚔️ Select Weapon")
-            # Sort weapons alphabetically
-            weapon_names = sorted([w['name'] for w in attacker_data['weapons']])
-            selected_weapon_name = st.selectbox("Attacker's weapon", weapon_names)
+        col1, col2 = st.columns(2)
 
-            selected_weapon = next(w for w in attacker_data['weapons'] if w['name'] == selected_weapon_name)
+        # Variables to store selected units/squads
+        attacker_name = None
+        attacker_data = None
+        attacker_squad = None
+        defender_name = None
+        defender_data = None
+        defender_squad = None
 
-            # Display weapon stats
-            wcol1, wcol2, wcol3, wcol4, wcol5, wcol6 = st.columns(6)
-            with wcol1:
-                st.metric("Range", selected_weapon.get('Range', '-'))
-            with wcol2:
-                st.metric("Attacks", selected_weapon.get('A', '-'))
-            with wcol3:
-                st.metric("Skill", selected_weapon.get('BS', selected_weapon.get('WS', '-')))
-            with wcol4:
-                st.metric("Strength", selected_weapon.get('S', '-'))
-            with wcol5:
-                st.metric("AP", selected_weapon.get('AP', '-'))
-            with wcol6:
-                st.metric("Damage", selected_weapon.get('D', '-'))
+        if use_composite:
+            # COMPOSITE SQUAD MODE
+            with col1:
+                attacker_squad = build_composite_squad_ui(army1_root, army1_ns, selected_army1, "Attacker")
 
-            st.divider()
+            with col2:
+                defender_squad = build_composite_squad_ui(army2_root, army2_ns, selected_army2, "Defender")
 
-            # Run simulation
+        else:
+            # SIMPLE MODE (original behavior)
+            with col1:
+                st.subheader(f"⚔️ Attacker ({selected_army1})")
+                army1_units_sim = get_all_units(army1_root, army1_ns, selected_army1)
+                st.caption(f"Available units: {len(army1_units_sim)}")
+
+                if len(army1_units_sim) > 0:
+                    attacker_name = st.selectbox(
+                        "Select attacking unit",
+                        # Sort units alphabetically
+                        options=sorted(army1_units_sim['name'].tolist()),
+                        key="attacker"
+                    )
+
+                    attacker_data = extract_unit_details(army1_root, army1_ns, attacker_name)
+                    display_unit_panel(attacker_data, attacker_name)
+                else:
+                    st.error(f"No {selected_army1} units loaded")
+
+            with col2:
+                st.subheader(f"🛡️ Defender ({selected_army2})")
+                army2_units_sim = get_all_units(army2_root, army2_ns, selected_army2)
+                st.caption(f"Available units: {len(army2_units_sim)}")
+
+                if len(army2_units_sim) > 0:
+                    defender_name = st.selectbox(
+                        "Select defending unit",
+                        # Sort units alphabetically
+                        options=sorted(army2_units_sim['name'].tolist()),
+                        key="defender"
+                    )
+
+                    defender_data = extract_unit_details(army2_root, army2_ns, defender_name)
+                    display_unit_panel(defender_data, defender_name)
+                else:
+                    st.error(f"No {selected_army2} units loaded")
+
+        st.divider()
+
+        # Weapon selection and simulation - different logic for composite vs simple mode
+        can_simulate = False
+        selected_weapon = None
+        selected_weapon_name = None  # Initialize for both modes
+
+        if use_composite:
+            # COMPOSITE MODE: Check if both squads are built and have weapons selected
+            if attacker_squad and defender_squad:
+                st.subheader("⚔️ Squad Weapons Summary")
+
+                col_atk, col_def = st.columns(2)
+                with col_atk:
+                    st.write("**Attacker Weapons:**")
+                    weapon_list = []
+                    for comp in attacker_squad.components:
+                        if comp.selected_weapon:
+                            st.write(f"- {comp.unit_name} ({comp.model_count}x): {comp.selected_weapon}")
+                            weapon_list.append(f"{comp.model_count}x {comp.selected_weapon}")
+
+                    # Create weapon summary for benchmark
+                    selected_weapon_name = " + ".join(weapon_list) if weapon_list else "Mixed Weapons"
+
+                with col_def:
+                    st.write("**Defender:**")
+                    st.write(f"Total: {defender_squad.get_total_models()} models")
+
+                can_simulate = True
+            else:
+                if not attacker_squad:
+                    st.warning("⚠️ Build an Attacker squad first")
+                if not defender_squad:
+                    st.warning("⚠️ Build a Defender squad first")
+
+        else:
+            # SIMPLE MODE: Original weapon selection logic
+            if attacker_data and attacker_data['weapons']:
+                st.subheader("⚔️ Select Weapon")
+                # Sort weapons alphabetically
+                weapon_names = sorted([w['name'] for w in attacker_data['weapons']])
+                selected_weapon_name = st.selectbox("Attacker's weapon", weapon_names)
+
+                selected_weapon = next(w for w in attacker_data['weapons'] if w['name'] == selected_weapon_name)
+
+                # Display weapon stats
+                wcol1, wcol2, wcol3, wcol4, wcol5, wcol6 = st.columns(6)
+                with wcol1:
+                    st.metric("Range", selected_weapon.get('Range', '-'))
+                with wcol2:
+                    st.metric("Attacks", selected_weapon.get('A', '-'))
+                with wcol3:
+                    st.metric("Skill", selected_weapon.get('BS', selected_weapon.get('WS', '-')))
+                with wcol4:
+                    st.metric("Strength", selected_weapon.get('S', '-'))
+                with wcol5:
+                    st.metric("AP", selected_weapon.get('AP', '-'))
+                with wcol6:
+                    st.metric("Damage", selected_weapon.get('D', '-'))
+
+                can_simulate = True
+
+        st.divider()
+
+        # Run simulation button
+        if can_simulate:
             if st.button("🎲 Run Combat Simulation", type="primary", use_container_width=True):
                 # Build modifiers dictionary
                 modifiers = {
@@ -1834,15 +2212,28 @@ def main():
                 }
 
                 with st.spinner(f"Running {num_simulations:,} simulations..."):
-                    results = simulate_attack_sequence(
-                        selected_weapon,
-                        attacker_data,
-                        defender_data,
-                        num_simulations,
-                        attacker_squad_size,
-                        defender_squad_size,
-                        modifiers
-                    )
+                    if use_composite:
+                        # Run composite squad simulation
+                        results = simulate_composite_squad_attack(
+                            attacker_squad,
+                            defender_squad,
+                            num_simulations,
+                            modifiers
+                        )
+                        # Set names for display
+                        attacker_name = attacker_squad.name
+                        defender_name = defender_squad.name
+                    else:
+                        # Run simple simulation
+                        results = simulate_attack_sequence(
+                            selected_weapon,
+                            attacker_data,
+                            defender_data,
+                            num_simulations,
+                            attacker_squad_size,
+                            defender_squad_size,
+                            modifiers
+                        )
 
                     st.success("Simulation complete!")
 
@@ -1852,9 +2243,45 @@ def main():
                     # Show configuration
                     config_col1, config_col2 = st.columns(2)
                     with config_col1:
-                        st.info(f"**Attacker:** {attacker_name} ({attacker_squad_size} models)\n\n**Army:** {selected_army1}\n\n**Detachment:** {selected_army1_detachment}")
+                        if use_composite:
+                            st.info(f"**Attacker:** {attacker_name}\n\n**Army:** {selected_army1}\n\n**Detachment:** {selected_army1_detachment}")
+                        else:
+                            st.info(f"**Attacker:** {attacker_name} ({attacker_squad_size} models)\n\n**Army:** {selected_army1}\n\n**Detachment:** {selected_army1_detachment}")
                     with config_col2:
-                        st.info(f"**Defender:** {defender_name} ({defender_squad_size} models)\n\n**Army:** {selected_army2}\n\n**Detachment:** {selected_army2_detachment}")
+                        if use_composite:
+                            st.info(f"**Defender:** {defender_name}\n\n**Army:** {selected_army2}\n\n**Detachment:** {selected_army2_detachment}")
+                        else:
+                            st.info(f"**Defender:** {defender_name} ({defender_squad_size} models)\n\n**Army:** {selected_army2}\n\n**Detachment:** {selected_army2_detachment}")
+
+                    # Show component breakdown for composite squads
+                    if use_composite and 'component_breakdown' in results:
+                        st.subheader("🎖️ Component Breakdown")
+                        breakdown_data = []
+                        for comp in results['component_breakdown']:
+                            breakdown_data.append({
+                                'Unit': comp['unit_name'],
+                                'Models': comp['model_count'],
+                                'Weapon': comp['weapon'],
+                                'Avg Damage': f"{comp['avg_damage']:.2f}",
+                                'Avg Kills': f"{comp['avg_kills']:.2f}"
+                            })
+
+                        if breakdown_data:
+                            breakdown_df = pd.DataFrame(breakdown_data)
+                            st.dataframe(breakdown_df, use_container_width=True, hide_index=True)
+
+                            # Visual chart of component contributions
+                            fig_breakdown = px.bar(
+                                breakdown_df,
+                                x='Unit',
+                                y='Avg Damage',
+                                title="Damage Contribution by Component",
+                                labels={'Avg Damage': 'Average Damage', 'Unit': 'Squad Component'},
+                                text='Avg Damage'
+                            )
+                            st.plotly_chart(fig_breakdown, use_container_width=True)
+
+                        st.divider()
 
                     # Summary metrics - First row
                     col1, col2, col3, col4 = st.columns(4)
@@ -1976,16 +2403,37 @@ def main():
                     # Extract points from unit costs if available
                     attacker_points = 0
                     defender_points = 0
-                    if attacker_data.get('costs'):
-                        attacker_points = int(float(attacker_data['costs'].get('pts', 0)))
-                    if defender_data.get('costs'):
-                        defender_points = int(float(defender_data['costs'].get('pts', 0)))
+
+                    if use_composite:
+                        # Calculate total points from all squad components
+                        if attacker_squad:
+                            for comp in attacker_squad.components:
+                                if comp.unit_data and comp.unit_data.get('costs'):
+                                    comp_pts = int(float(comp.unit_data['costs'].get('pts', 0)))
+                                    attacker_points += comp_pts * comp.model_count
+                        if defender_squad:
+                            for comp in defender_squad.components:
+                                if comp.unit_data and comp.unit_data.get('costs'):
+                                    comp_pts = int(float(comp.unit_data['costs'].get('pts', 0)))
+                                    defender_points += comp_pts * comp.model_count
+                    else:
+                        # Simple mode - use single unit costs
+                        if attacker_data and attacker_data.get('costs'):
+                            attacker_points = int(float(attacker_data['costs'].get('pts', 0))) * attacker_squad_size
+                        if defender_data and defender_data.get('costs'):
+                            defender_points = int(float(defender_data['costs'].get('pts', 0))) * defender_squad_size
+
+                    # Get defender squad size based on mode
+                    if use_composite:
+                        actual_defender_squad_size = defender_squad.get_total_models() if defender_squad else 1
+                    else:
+                        actual_defender_squad_size = defender_squad_size
 
                     advanced_stats = calculate_advanced_statistics(
                         results,
                         attacker_points=attacker_points,
                         defender_points=defender_points,
-                        defender_squad_size=defender_squad_size,
+                        defender_squad_size=actual_defender_squad_size,
                         num_simulations=num_simulations
                     )
 
@@ -2531,6 +2979,434 @@ def main():
                 st.rerun()
         else:
             st.info("No benchmark results yet. Run simulations in the Combat Simulator tab to see results here.")
+
+    with tab4:
+        st.header("🎲 Matchup Matrix")
+        st.markdown("Bulk simulation: Test one attacker unit against multiple defender units to find optimal targets and counters")
+
+        # Initialize session state for matrix results
+        if 'matrix_results' not in st.session_state:
+            st.session_state.matrix_results = None
+
+        matrix_col1, matrix_col2 = st.columns(2)
+
+        with matrix_col1:
+            st.subheader(f"⚔️ Attacking Unit ({selected_army1})")
+
+            army1_units_matrix = get_all_units(army1_root, army1_ns, selected_army1)
+
+            if len(army1_units_matrix) > 0:
+                # Search and select attacker
+                search_attacker_matrix = st.text_input("Search attacking unit", key="matrix_attacker_search")
+                filtered_attacker = army1_units_matrix[army1_units_matrix['name'].str.contains(search_attacker_matrix, case=False, na=False)] if search_attacker_matrix else army1_units_matrix
+
+                attacker_unit_matrix = st.selectbox(
+                    "Select ONE attacking unit",
+                    options=sorted(filtered_attacker['name'].tolist()),
+                    key="matrix_attacker_select"
+                )
+
+                if attacker_unit_matrix:
+                    attacker_data_matrix = extract_unit_details(army1_root, army1_ns, attacker_unit_matrix)
+
+                    # Show compact unit info
+                    if attacker_data_matrix['profiles']:
+                        profile = attacker_data_matrix['profiles'][0]
+                        st.caption(f"T: {profile.get('T')} | SV: {profile.get('SV')} | W: {profile.get('W')}")
+
+                    # Weapon selection
+                    if attacker_data_matrix['weapons']:
+                        weapon_names = sorted([w['name'] for w in attacker_data_matrix['weapons']])
+                        selected_weapon_matrix = st.selectbox(
+                            "Select weapon",
+                            weapon_names,
+                            key="matrix_weapon_select"
+                        )
+
+                        selected_weapon_data = next(w for w in attacker_data_matrix['weapons'] if w['name'] == selected_weapon_matrix)
+
+                        # Show weapon stats
+                        st.caption(f"A: {selected_weapon_data.get('A')} | BS/WS: {selected_weapon_data.get('BS', selected_weapon_data.get('WS'))} | S: {selected_weapon_data.get('S')} | AP: {selected_weapon_data.get('AP')} | D: {selected_weapon_data.get('D')}")
+                    else:
+                        st.warning("No weapons available for this unit")
+                        selected_weapon_matrix = None
+                        selected_weapon_data = None
+            else:
+                st.error(f"No {selected_army1} units loaded")
+
+        with matrix_col2:
+            st.subheader(f"🛡️ Target Units ({selected_army2})")
+
+            army2_units_matrix = get_all_units(army2_root, army2_ns, selected_army2)
+
+            if len(army2_units_matrix) > 0:
+                # Search defenders
+                search_defender_matrix = st.text_input("Search target units", key="matrix_defender_search")
+                filtered_defender = army2_units_matrix[army2_units_matrix['name'].str.contains(search_defender_matrix, case=False, na=False)] if search_defender_matrix else army2_units_matrix
+
+                st.caption(f"{len(filtered_defender)} units available")
+
+                # Initialize selection if not exists or if it needs filtering
+                available_units = sorted(filtered_defender['name'].tolist())
+
+                if 'matrix_selected_defenders' not in st.session_state:
+                    st.session_state.matrix_selected_defenders = available_units[:10]  # Default: first 10
+
+                # Ensure selected defenders are still in available units (after filtering)
+                st.session_state.matrix_selected_defenders = [
+                    d for d in st.session_state.matrix_selected_defenders if d in available_units
+                ]
+
+                # Multi-select with select/deselect all
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if st.button("✅ Select All", key="matrix_select_all"):
+                        st.session_state.matrix_selected_defenders = available_units
+                        st.rerun()
+                with col_b:
+                    if st.button("❌ Clear All", key="matrix_clear_all"):
+                        st.session_state.matrix_selected_defenders = []
+                        st.rerun()
+
+                selected_defenders_matrix = st.multiselect(
+                    "Select target units to test against",
+                    options=available_units,
+                    default=st.session_state.matrix_selected_defenders
+                )
+
+                # Update session state with current selection
+                st.session_state.matrix_selected_defenders = selected_defenders_matrix
+
+                st.info(f"📋 **{len(selected_defenders_matrix)} units** selected for simulation")
+            else:
+                st.error(f"No {selected_army2} units loaded")
+
+        # Simulation settings
+        st.divider()
+        st.subheader("⚙️ Simulation Settings")
+
+        sim_col1, sim_col2, sim_col3 = st.columns(3)
+
+        with sim_col1:
+            matrix_num_sims = st.slider(
+                "Simulations per matchup",
+                min_value=100,
+                max_value=10000,
+                value=500,
+                step=100,
+                help="More simulations = more accurate but slower"
+            )
+
+        with sim_col2:
+            matrix_attacker_size = st.number_input(
+                "Attacker squad size",
+                min_value=1,
+                max_value=20,
+                value=1,
+                key="matrix_attacker_size"
+            )
+
+        with sim_col3:
+            matrix_defender_size = st.number_input(
+                "Defender squad size",
+                min_value=1,
+                max_value=20,
+                value=1,
+                key="matrix_defender_size"
+            )
+
+        # Run button
+        st.divider()
+
+        can_run = (
+            attacker_unit_matrix and
+            selected_weapon_data and
+            len(selected_defenders_matrix) > 0
+        )
+
+        if can_run:
+            total_matchups = len(selected_defenders_matrix)
+            st.info(f"🎯 Ready to simulate **{total_matchups} matchups** ({total_matchups * matrix_num_sims:,} total simulations)")
+
+            if st.button("🚀 Run Matchup Matrix", type="primary", use_container_width=True):
+                # Run bulk simulations
+                matrix_results = []
+
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
+                for idx, defender_name in enumerate(selected_defenders_matrix):
+                    status_text.text(f"Simulating {idx + 1}/{total_matchups}: {attacker_unit_matrix} vs {defender_name}...")
+                    progress_bar.progress((idx + 1) / total_matchups)
+
+                    # Extract defender data
+                    defender_data = extract_unit_details(army2_root, army2_ns, defender_name)
+
+                    # Get defender points
+                    defender_points = 0
+                    if defender_data.get('costs'):
+                        defender_points = int(float(defender_data['costs'].get('pts', 0)))
+
+                    # Get attacker points
+                    attacker_points = 0
+                    if attacker_data_matrix.get('costs'):
+                        attacker_points = int(float(attacker_data_matrix['costs'].get('pts', 0)))
+
+                    # Run simulation
+                    results = simulate_attack_sequence(
+                        selected_weapon_data,
+                        attacker_data_matrix,
+                        defender_data,
+                        matrix_num_sims,
+                        matrix_attacker_size,
+                        matrix_defender_size,
+                        modifiers={}
+                    )
+
+                    # Calculate advanced stats
+                    adv_stats = calculate_advanced_statistics(
+                        results,
+                        attacker_points=attacker_points,
+                        defender_points=defender_points,
+                        defender_squad_size=matrix_defender_size,
+                        num_simulations=matrix_num_sims
+                    )
+
+                    # Store result
+                    matrix_results.append({
+                        'defender': defender_name,
+                        'defender_T': defender_data['profiles'][0].get('T', 'N/A') if defender_data['profiles'] else 'N/A',
+                        'defender_SV': defender_data['profiles'][0].get('SV', 'N/A') if defender_data['profiles'] else 'N/A',
+                        'defender_W': defender_data['profiles'][0].get('W', 'N/A') if defender_data['profiles'] else 'N/A',
+                        'defender_points': defender_points,
+                        'avg_damage': results['total_damage'] / matrix_num_sims,
+                        'avg_models_killed': results['models_killed'] / matrix_num_sims,
+                        'squad_wipe_pct': sum(1 for k in results['models_killed_per_simulation'] if k >= matrix_defender_size) / matrix_num_sims * 100,
+                        'threat_level': adv_stats['meta_scoring']['threat_level'],
+                        'reliability_grade': adv_stats['meta_scoring']['reliability_grade'],
+                        'efficiency_grade': adv_stats['meta_scoring']['efficiency_grade'],
+                        'consistency_score': adv_stats['consistency']['consistency_score'],
+                        'p10_damage': adv_stats['percentiles']['damage']['p10'],
+                        'p50_damage': adv_stats['percentiles']['damage']['p50'],
+                        'p90_damage': adv_stats['percentiles']['damage']['p90'],
+                        'whiff_rate': adv_stats['probability']['zero_damage_rate'],
+                        'points_trade_ratio': adv_stats['meta_scoring']['points_trade_ratio']
+                    })
+
+                progress_bar.empty()
+                status_text.empty()
+                st.success(f"✅ Completed {total_matchups} matchups!")
+
+                # Store in session state
+                st.session_state.matrix_results = {
+                    'attacker': attacker_unit_matrix,
+                    'attacker_army': selected_army1,
+                    'weapon': selected_weapon_matrix,
+                    'defender_army': selected_army2,
+                    'results': matrix_results
+                }
+        else:
+            st.warning("⚠️ Please select an attacking unit, weapon, and at least one target unit")
+
+        # Display results
+        if st.session_state.matrix_results:
+            st.divider()
+            st.header("📊 Matchup Matrix Results")
+
+            matrix_data = st.session_state.matrix_results
+            results_df = pd.DataFrame(matrix_data['results'])
+
+            st.markdown(f"**{matrix_data['attacker']}** ({matrix_data['attacker_army']}) with **{matrix_data['weapon']}** vs **{matrix_data['defender_army']}** units")
+
+            # Sort options
+            sort_option = st.selectbox(
+                "Sort by",
+                options=[
+                    "Avg Damage (High to Low)",
+                    "Threat Level (High to Low)",
+                    "Reliability Grade",
+                    "Point Efficiency",
+                    "Squad Wipe % (High to Low)",
+                    "Alphabetical"
+                ],
+                key="matrix_sort"
+            )
+
+            # Apply sorting
+            if sort_option == "Avg Damage (High to Low)":
+                results_df = results_df.sort_values('avg_damage', ascending=False)
+            elif sort_option == "Threat Level (High to Low)":
+                results_df = results_df.sort_values('threat_level', ascending=False)
+            elif sort_option == "Reliability Grade":
+                grade_order = {'S': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'F': 5, 'N/A': 6}
+                results_df['grade_order'] = results_df['reliability_grade'].map(lambda x: grade_order.get(x, 6))
+                results_df = results_df.sort_values('grade_order')
+                results_df = results_df.drop('grade_order', axis=1)
+            elif sort_option == "Point Efficiency":
+                results_df = results_df.sort_values('points_trade_ratio', ascending=False)
+            elif sort_option == "Squad Wipe % (High to Low)":
+                results_df = results_df.sort_values('squad_wipe_pct', ascending=False)
+            else:  # Alphabetical
+                results_df = results_df.sort_values('defender')
+
+            # Display table
+            display_df = results_df[[
+                'defender', 'defender_T', 'defender_SV', 'defender_W',
+                'avg_damage', 'avg_models_killed', 'squad_wipe_pct',
+                'threat_level', 'reliability_grade', 'efficiency_grade'
+            ]].copy()
+
+            display_df.columns = [
+                'Target', 'T', 'SV', 'W', 'Avg Dmg', 'Kills', 'Wipe %',
+                'Threat', 'Reliability', 'Efficiency'
+            ]
+
+            # Format numbers
+            display_df['Avg Dmg'] = display_df['Avg Dmg'].apply(lambda x: f"{x:.2f}")
+            display_df['Kills'] = display_df['Kills'].apply(lambda x: f"{x:.2f}")
+            display_df['Wipe %'] = display_df['Wipe %'].apply(lambda x: f"{x:.1f}%")
+            display_df['Threat'] = display_df['Threat'].apply(lambda x: f"{x:.1f}")
+
+            st.dataframe(display_df, use_container_width=True, hide_index=True, height=400)
+
+            # Visualizations
+            st.subheader("📈 Visual Analysis")
+
+            viz_col1, viz_col2 = st.columns(2)
+
+            with viz_col1:
+                # Damage heatmap-style bar chart
+                fig_damage = px.bar(
+                    results_df.sort_values('avg_damage', ascending=True).tail(15),
+                    x='avg_damage',
+                    y='defender',
+                    orientation='h',
+                    title='Top 15 Targets by Damage Output',
+                    labels={'avg_damage': 'Average Damage', 'defender': 'Target Unit'},
+                    color='avg_damage',
+                    color_continuous_scale='Reds'
+                )
+                st.plotly_chart(fig_damage, use_container_width=True)
+
+            with viz_col2:
+                # Threat level visualization
+                fig_threat = px.bar(
+                    results_df.sort_values('threat_level', ascending=True).tail(15),
+                    x='threat_level',
+                    y='defender',
+                    orientation='h',
+                    title='Top 15 Targets by Threat Level',
+                    labels={'threat_level': 'Threat Level (0-100)', 'defender': 'Target Unit'},
+                    color='threat_level',
+                    color_continuous_scale='RdYlGn'
+                )
+                st.plotly_chart(fig_threat, use_container_width=True)
+
+            # Strategic recommendations
+            st.subheader("🎯 Strategic Insights")
+
+            insight_col1, insight_col2, insight_col3 = st.columns(3)
+
+            with insight_col1:
+                st.markdown("**🔥 Best Targets (High Damage + Reliable)**")
+                best_targets = results_df[
+                    (results_df['threat_level'] >= 60) &
+                    (results_df['reliability_grade'].isin(['S', 'A', 'B']))
+                ].sort_values('threat_level', ascending=False).head(5)
+
+                if len(best_targets) > 0:
+                    for _, row in best_targets.iterrows():
+                        st.write(f"✅ **{row['defender']}**")
+                        st.caption(f"   Threat: {row['threat_level']:.0f} | {row['reliability_grade']} reliability")
+                else:
+                    st.caption("No highly effective matchups")
+
+            with insight_col2:
+                st.markdown("**⚠️ Risky Targets (Inconsistent)**")
+                risky = results_df[
+                    (results_df['avg_damage'] > results_df['avg_damage'].median()) &
+                    (results_df['reliability_grade'].isin(['C', 'D', 'F']))
+                ].sort_values('avg_damage', ascending=False).head(5)
+
+                if len(risky) > 0:
+                    for _, row in risky.iterrows():
+                        st.write(f"🎲 **{row['defender']}**")
+                        st.caption(f"   Dmg: {row['avg_damage']:.1f} | {row['reliability_grade']} reliability")
+                else:
+                    st.caption("All matchups are consistent")
+
+            with insight_col3:
+                st.markdown("**❌ Avoid (Low Effectiveness)**")
+                avoid = results_df[
+                    results_df['threat_level'] < 30
+                ].sort_values('threat_level').head(5)
+
+                if len(avoid) > 0:
+                    for _, row in avoid.iterrows():
+                        st.write(f"❌ **{row['defender']}**")
+                        st.caption(f"   Threat: {row['threat_level']:.0f} | {row['whiff_rate']:.0f}% whiff")
+                else:
+                    st.caption("All targets are viable")
+
+            # Point efficiency analysis
+            if results_df['points_trade_ratio'].max() > 0:
+                st.divider()
+                st.subheader("💰 Point Efficiency Analysis")
+
+                efficiency_df = results_df[results_df['points_trade_ratio'] > 0].sort_values('points_trade_ratio', ascending=False)
+
+                fig_efficiency = px.scatter(
+                    efficiency_df,
+                    x='defender_points',
+                    y='points_trade_ratio',
+                    size='avg_damage',
+                    color='efficiency_grade',
+                    hover_data=['defender', 'avg_damage', 'reliability_grade'],
+                    title='Point Efficiency by Target Points Cost',
+                    labels={
+                        'defender_points': 'Target Points Cost',
+                        'points_trade_ratio': 'Points Destroyed per Point Spent',
+                        'avg_damage': 'Avg Damage'
+                    },
+                    color_discrete_map={'S': 'green', 'A': 'lightgreen', 'B': 'yellow', 'C': 'orange', 'D': 'red', 'F': 'darkred'}
+                )
+                fig_efficiency.add_hline(y=1.0, line_dash="dash", annotation_text="Break Even (1:1)")
+                st.plotly_chart(fig_efficiency, use_container_width=True)
+
+            # Export option
+            st.divider()
+            if st.button("💾 Save to Benchmarks"):
+                # Add all matchups to benchmark results
+                if 'benchmark_results' not in st.session_state:
+                    st.session_state.benchmark_results = []
+
+                for result in matrix_data['results']:
+                    st.session_state.benchmark_results.append({
+                        'attacker': matrix_data['attacker'],
+                        'attacker_army': matrix_data['attacker_army'],
+                        'attacker_size': matrix_attacker_size,
+                        'defender': result['defender'],
+                        'defender_army': matrix_data['defender_army'],
+                        'defender_size': matrix_defender_size,
+                        'weapon': matrix_data['weapon'],
+                        'simulations': matrix_num_sims,
+                        'avg_damage': result['avg_damage'],
+                        'avg_models_killed': result['avg_models_killed'],
+                        'squad_wipe_chance': result['squad_wipe_pct'],
+                        'advanced_stats': {
+                            'meta_scoring': {
+                                'threat_level': result['threat_level'],
+                                'reliability_grade': result['reliability_grade'],
+                                'efficiency_grade': result['efficiency_grade'],
+                                'points_trade_ratio': result['points_trade_ratio']
+                            },
+                            'consistency': {
+                                'consistency_score': result['consistency_score']
+                            }
+                        }
+                    })
+
+                st.success(f"✅ Added {len(matrix_data['results'])} matchups to benchmarks!")
 
 if __name__ == "__main__":
     main()
