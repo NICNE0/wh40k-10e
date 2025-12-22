@@ -42,6 +42,42 @@ A statistical combat simulator for Warhammer 40k 10th Edition. Compare units fro
 - Standard deviation
 - Benchmark comparison across multiple matchups
 
+### 🎯 Advanced META Analysis
+- **META Ratings:**
+  - Threat Level (0-100): Combined damage output and consistency score
+  - Reliability Grade (S/A/B/C/D/F): How often you achieve 75%+ of average damage
+  - Point Efficiency Grade: Expected points destroyed per point spent
+  - Overall META Score: Composite rating across all factors
+
+- **Percentile Analysis (P10/P25/P50/P75/P90):**
+  - Understand damage ranges from bad luck to hot dice
+  - Plan for worst-case and best-case scenarios
+  - Identify typical (median) performance
+
+- **Consistency Metrics:**
+  - Consistency Score (0-100): How predictable your damage is
+  - Coefficient of Variation: Statistical measure of variability
+  - Interquartile Range (IQR): Middle 50% damage spread
+  - Clutch Probability: Chance to kill at least 1 model
+
+- **Efficiency Metrics:**
+  - Damage per Attack: Average damage conversion per attack
+  - Damage per Point: Value efficiency for competitive play
+  - Hit/Wound Rates: Phase-by-phase success percentages
+  - Conversion Rate: Overall attacks-to-damage efficiency
+
+- **Kill Probability Analysis:**
+  - Cumulative probability charts for killing N models
+  - Whiff Rate: Chance to deal 0 damage
+  - Squad Wipe Probability: Chance to eliminate entire unit
+  - Overkill Analysis: Excess damage when wiping squads
+
+- **Benchmark Comparisons:**
+  - Side-by-side META ratings across matchups
+  - Identify highest damage, most consistent, and best value options
+  - Point efficiency visualization with break-even analysis
+  - Multi-metric comparison charts
+
 ## Installation
 
 ```bash
@@ -128,18 +164,61 @@ Run multiple matchups to create a comprehensive damage matrix:
 - Identify advantageous/disadvantageous matchups
 - Plan your target priority and tactics
 
+## Advanced Statistics for META Planning
+
+The simulator now includes comprehensive statistical analysis designed for competitive META evaluation:
+
+### When Building Army Lists
+- **Point Efficiency Grades** help you identify units that trade favorably
+- **Threat Level Ratings** show which units are genuinely dangerous vs which look scary on paper
+- **Consistency Scores** reveal which units are tournament-reliable vs dice-dependent
+
+### When Analyzing Matchups
+- **Percentile Analysis** shows your damage floor (P10) and ceiling (P90)
+- **Kill Probability Charts** answer "Can I actually kill this unit?" not just "What's average damage?"
+- **Reliability Grades** identify which units you can count on for critical eliminations
+
+### When Making Target Priority Decisions
+- **Damage per Attack** efficiency helps optimize focus-fire targets
+- **Overkill Analysis** prevents wasting shots on already-dead units
+- **Clutch Probability** shows which weapons guarantee at least 1 kill
+
+### Strategic Insights from META Ratings
+
+**S-Tier Units (90+ Reliability, High Damage):**
+- Tournament staples
+- Consistent game-winners
+- Worth building lists around
+
+**A-Tier Units (75-90% Reliability):**
+- Competitive viable
+- Good into multiple matchups
+- Solid list inclusions
+
+**Glass Cannons (High Damage, Low Consistency):**
+- High variance = risky in tournaments
+- Great for casual/narrative play
+- Consider re-roll support
+
+**Avoid (Low Damage + Low Consistency):**
+- Poor matchup - don't take the fight
+- Consider alternative units or loadouts
+
 ## Limitations
 
 Current version does not include:
-- Stratagems
-- Command points
-- Re-rolls (except those built into weapon profiles)
-- Special abilities that modify rolls
-- Mortal wounds
-- Feel No Pain saves
+- Stratagems (planned)
+- Command points (planned)
+- Some conditional abilities (in progress)
 - Multi-model unit targeting
 
-These features may be added in future versions.
+Features already implemented:
+- ✅ Re-rolls (weapon and unit abilities)
+- ✅ Mortal wounds
+- ✅ Feel No Pain saves
+- ✅ Special abilities that modify rolls
+- ✅ Defensive abilities (Transhuman, Halve Damage, -1 to be hit/wounded)
+- ✅ Comprehensive ability parsing from weapon/unit descriptions
 
 ## Tips
 
