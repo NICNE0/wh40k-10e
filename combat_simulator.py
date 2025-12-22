@@ -88,39 +88,100 @@ def parse_catalogue(file_path: str) -> Tuple:
 
 @st.cache_data
 def get_all_units(_root, _ns, catalogue_name: str) -> pd.DataFrame:
-    """Get all units from catalogue (root-level entryLinks only)"""
-    units = []
+    """
+    Get all units from catalogue including imported units from linked catalogues.
 
-    # Find the root-level entryLinks element
+    For Astartes armies, this includes both chapter-specific units and shared Space Marine units.
+    """
+    units = []
+    unit_ids = set()  # Track IDs to avoid duplicates
+
+    # Find the root-level entryLinks element (direct units)
     entry_links_elem = _root.find('cat:entryLinks', _ns)
 
     if entry_links_elem is not None:
         # Get only direct children of entryLinks
         for entry in entry_links_elem.findall('cat:entryLink', _ns):
             if entry.get('type') == 'selectionEntry' and entry.get('hidden', 'false') == 'false':
-                units.append({
-                    'name': entry.get('name'),
-                    'id': entry.get('id'),
-                    'targetId': entry.get('targetId')
-                })
+                unit_id = entry.get('id')
+                if unit_id not in unit_ids:
+                    units.append({
+                        'name': entry.get('name'),
+                        'id': unit_id,
+                        'targetId': entry.get('targetId'),
+                        'source': 'direct'
+                    })
+                    unit_ids.add(unit_id)
+
+    # Check for imported catalogue units (e.g., Space Marines importing shared Astartes units)
+    # This handles the case where Dark Angels, Blood Angels, etc. import Space Marines catalogue
+    for cat_link in _root.findall('cat:catalogueLinks/cat:catalogueLink', _ns):
+        import_root = cat_link.get('importRootEntries', 'false')
+        if import_root == 'true':
+            # This catalogue imports units from another catalogue
+            # We need to parse the linked catalogue
+            linked_cat_name = cat_link.get('name')
+            linked_cat_id = cat_link.get('targetId')
+
+            # Try to find and parse the linked catalogue file
+            # Common pattern: "Imperium - Space Marines" -> "Imperium - Space Marines.cat"
+            try:
+                from pathlib import Path
+                base_path = Path(__file__).parent
+
+                # Try exact match first
+                linked_file = base_path / f"{linked_cat_name}.cat"
+
+                if linked_file.exists():
+                    linked_tree = ET.parse(str(linked_file))
+                    linked_root = linked_tree.getroot()
+
+                    # Get units from linked catalogue
+                    linked_entry_links = linked_root.find('cat:entryLinks', _ns)
+                    if linked_entry_links is not None:
+                        for entry in linked_entry_links.findall('cat:entryLink', _ns):
+                            if entry.get('type') == 'selectionEntry' and entry.get('hidden', 'false') == 'false':
+                                unit_id = entry.get('id')
+                                if unit_id not in unit_ids:
+                                    units.append({
+                                        'name': entry.get('name'),
+                                        'id': unit_id,
+                                        'targetId': entry.get('targetId'),
+                                        'source': f'imported from {linked_cat_name}'
+                                    })
+                                    unit_ids.add(unit_id)
+            except Exception as e:
+                # Silently skip if we can't load the linked catalogue
+                pass
 
     return pd.DataFrame(units)
 
 @st.cache_data
 def extract_detachments(_root, _ns, catalogue_name: str) -> List[Dict]:
-    """Extract detachment information and their rules"""
-    detachments = []
+    """
+    Extract detachment information and their rules.
 
-    # Find the Detachment selectionEntry
-    for entry in _root.findall('.//cat:selectionEntry[@name="Detachment"]', _ns):
-        # Find all detachment options within the selectionEntryGroup
-        for group in entry.findall('.//cat:selectionEntryGroup', _ns):
-            for detachment in group.findall('.//cat:selectionEntry', _ns):
+    Detachments can be in multiple locations:
+    1. Direct selectionEntry with selectionEntryGroup children
+    2. sharedSelectionEntryGroups (for Space Marines and chapters)
+    3. Imported from linked catalogues
+    """
+    detachments = []
+    detachment_ids = set()  # Track IDs to avoid duplicates
+
+    # Method 1: Find detachments in sharedSelectionEntryGroups (primary method for Space Marines)
+    for group in _root.findall('.//cat:sharedSelectionEntryGroups/cat:selectionEntryGroup', _ns):
+        group_name = group.get('name', '').lower()
+        if 'detachment' in group_name:
+            # Found a detachment group
+            for detachment in group.findall('cat:selectionEntries/cat:selectionEntry', _ns):
                 det_name = detachment.get('name')
-                if det_name and det_name != 'none':
+                det_id = detachment.get('id')
+
+                if det_name and det_name.lower() != 'none' and det_id not in detachment_ids:
                     det_data = {
                         'name': det_name,
-                        'id': detachment.get('id'),
+                        'id': det_id,
                         'rules': []
                     }
 
@@ -136,6 +197,83 @@ def extract_detachments(_root, _ns, catalogue_name: str) -> List[Dict]:
                         })
 
                     detachments.append(det_data)
+                    detachment_ids.add(det_id)
+
+    # Method 2: Original method - Find the Detachment selectionEntry (fallback)
+    for entry in _root.findall('.//cat:selectionEntry[@name="Detachment"]', _ns):
+        # Find all detachment options within the selectionEntryGroup
+        for group in entry.findall('.//cat:selectionEntryGroup', _ns):
+            for detachment in group.findall('.//cat:selectionEntry', _ns):
+                det_name = detachment.get('name')
+                det_id = detachment.get('id')
+
+                if det_name and det_name.lower() != 'none' and det_id not in detachment_ids:
+                    det_data = {
+                        'name': det_name,
+                        'id': det_id,
+                        'rules': []
+                    }
+
+                    # Extract rules for this detachment
+                    for rule in detachment.findall('.//cat:rule', _ns):
+                        rule_name = rule.get('name')
+                        desc_elem = rule.find('cat:description', _ns)
+                        description = desc_elem.text if desc_elem is not None and desc_elem.text else ''
+
+                        det_data['rules'].append({
+                            'name': rule_name,
+                            'description': description
+                        })
+
+                    detachments.append(det_data)
+                    detachment_ids.add(det_id)
+
+    # Method 3: Import detachments from linked catalogues (for chapters importing from Space Marines)
+    for cat_link in _root.findall('cat:catalogueLinks/cat:catalogueLink', _ns):
+        import_root = cat_link.get('importRootEntries', 'false')
+        if import_root == 'true':
+            linked_cat_name = cat_link.get('name')
+
+            try:
+                from pathlib import Path
+                base_path = Path(__file__).parent
+                linked_file = base_path / f"{linked_cat_name}.cat"
+
+                if linked_file.exists():
+                    linked_tree = ET.parse(str(linked_file))
+                    linked_root = linked_tree.getroot()
+
+                    # Get detachments from linked catalogue using both methods
+                    # Method 1: sharedSelectionEntryGroups
+                    for group in linked_root.findall('.//cat:sharedSelectionEntryGroups/cat:selectionEntryGroup', _ns):
+                        group_name = group.get('name', '').lower()
+                        if 'detachment' in group_name:
+                            for detachment in group.findall('cat:selectionEntries/cat:selectionEntry', _ns):
+                                det_name = detachment.get('name')
+                                det_id = detachment.get('id')
+
+                                if det_name and det_name.lower() != 'none' and det_id not in detachment_ids:
+                                    det_data = {
+                                        'name': det_name,
+                                        'id': det_id,
+                                        'rules': []
+                                    }
+
+                                    for rule in detachment.findall('.//cat:rule', _ns):
+                                        rule_name = rule.get('name')
+                                        desc_elem = rule.find('cat:description', _ns)
+                                        description = desc_elem.text if desc_elem is not None and desc_elem.text else ''
+
+                                        det_data['rules'].append({
+                                            'name': rule_name,
+                                            'description': description
+                                        })
+
+                                    detachments.append(det_data)
+                                    detachment_ids.add(det_id)
+            except Exception:
+                # Silently skip if we can't load the linked catalogue
+                pass
 
     return detachments
 
@@ -2133,9 +2271,82 @@ def main():
         st.markdown("Compare multiple simulation results across matchups")
 
         if 'benchmark_results' in st.session_state and st.session_state.benchmark_results:
+            # Add filters and sort options
+            filter_col1, filter_col2, filter_col3 = st.columns(3)
+
+            with filter_col1:
+                # Filter by attacker army
+                all_attacker_armies = sorted(set(r.get('attacker_army', 'Unknown') for r in st.session_state.benchmark_results))
+                filter_attacker = st.multiselect(
+                    "Filter by Attacker Army",
+                    options=all_attacker_armies,
+                    default=all_attacker_armies,
+                    key="benchmark_filter_attacker"
+                )
+
+            with filter_col2:
+                # Filter by defender army
+                all_defender_armies = sorted(set(r.get('defender_army', 'Unknown') for r in st.session_state.benchmark_results))
+                filter_defender = st.multiselect(
+                    "Filter by Defender Army",
+                    options=all_defender_armies,
+                    default=all_defender_armies,
+                    key="benchmark_filter_defender"
+                )
+
+            with filter_col3:
+                # Sort by option
+                sort_by = st.selectbox(
+                    "Sort by",
+                    options=[
+                        "Overall Score (High to Low)",
+                        "Avg Damage (High to Low)",
+                        "Threat Level (High to Low)",
+                        "Reliability Grade (Best to Worst)",
+                        "Point Efficiency (Best to Worst)",
+                        "Consistency (High to Low)",
+                        "Most Recent First"
+                    ],
+                    key="benchmark_sort"
+                )
+
+            # Filter results
+            filtered_results = [
+                r for r in st.session_state.benchmark_results
+                if r.get('attacker_army', 'Unknown') in filter_attacker
+                and r.get('defender_army', 'Unknown') in filter_defender
+            ]
+
+            # Sort results
+            if sort_by == "Overall Score (High to Low)":
+                filtered_results = sorted(filtered_results,
+                    key=lambda r: r.get('advanced_stats', {}).get('meta_scoring', {}).get('overall_score', 0),
+                    reverse=True)
+            elif sort_by == "Avg Damage (High to Low)":
+                filtered_results = sorted(filtered_results, key=lambda r: r['avg_damage'], reverse=True)
+            elif sort_by == "Threat Level (High to Low)":
+                filtered_results = sorted(filtered_results,
+                    key=lambda r: r.get('advanced_stats', {}).get('meta_scoring', {}).get('threat_level', 0),
+                    reverse=True)
+            elif sort_by == "Reliability Grade (Best to Worst)":
+                grade_order = {'S': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'F': 5, 'N/A': 6}
+                filtered_results = sorted(filtered_results,
+                    key=lambda r: grade_order.get(r.get('advanced_stats', {}).get('meta_scoring', {}).get('reliability_grade', 'N/A'), 6))
+            elif sort_by == "Point Efficiency (Best to Worst)":
+                grade_order = {'S': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'F': 5, 'N/A': 6}
+                filtered_results = sorted(filtered_results,
+                    key=lambda r: grade_order.get(r.get('advanced_stats', {}).get('meta_scoring', {}).get('efficiency_grade', 'N/A'), 6))
+            elif sort_by == "Consistency (High to Low)":
+                filtered_results = sorted(filtered_results,
+                    key=lambda r: r.get('advanced_stats', {}).get('consistency', {}).get('consistency_score', 0),
+                    reverse=True)
+            # else: Most Recent First (default order)
+
+            st.caption(f"Showing {len(filtered_results)} of {len(st.session_state.benchmark_results)} results")
+
             # Create comparison dataframe with advanced stats
             comparison_data = []
-            for result in st.session_state.benchmark_results:
+            for result in filtered_results:
                 adv_stats = result.get('advanced_stats', {})
                 meta_scoring = adv_stats.get('meta_scoring', {})
 
@@ -2146,26 +2357,26 @@ def main():
                     'Defender Army': result.get('defender_army', 'Unknown'),
                     'Defender': result['defender'],
                     'Avg Damage': f"{result['avg_damage']:.2f}",
-                    'Avg Models Killed': f"{result['avg_models_killed']:.2f}",
-                    'Squad Wipe %': f"{result['squad_wipe_chance']:.1f}%",
-                    'Threat Level': f"{meta_scoring.get('threat_level', 0):.1f}",
+                    'Models Killed': f"{result['avg_models_killed']:.2f}",
+                    'Wipe %': f"{result['squad_wipe_chance']:.1f}%",
+                    'Threat': f"{meta_scoring.get('threat_level', 0):.1f}",
                     'Reliability': meta_scoring.get('reliability_grade', 'N/A'),
                     'Efficiency': meta_scoring.get('efficiency_grade', 'N/A'),
-                    'Overall Score': f"{meta_scoring.get('overall_score', 0):.1f}",
-                    'Simulations': result['simulations']
+                    'Score': f"{meta_scoring.get('overall_score', 0):.1f}",
+                    'Sims': result['simulations']
                 })
 
             comparison_df = pd.DataFrame(comparison_data)
             st.dataframe(comparison_df, use_container_width=True, hide_index=True)
 
             # Comparison charts
-            if len(st.session_state.benchmark_results) > 1:
+            if len(filtered_results) > 1:
                 st.subheader("📈 Comparative Analysis")
 
                 # Create matchup labels
                 matchup_labels = [
                     f"{r['attacker'][:15]} vs {r['defender'][:15]}"
-                    for r in st.session_state.benchmark_results
+                    for r in filtered_results
                 ]
 
                 chart_col1, chart_col2 = st.columns(2)
@@ -2174,7 +2385,7 @@ def main():
                     # Damage comparison
                     chart_data = pd.DataFrame({
                         'Matchup': matchup_labels,
-                        'Average Damage': [r['avg_damage'] for r in st.session_state.benchmark_results]
+                        'Average Damage': [r['avg_damage'] for r in filtered_results]
                     })
 
                     fig = px.bar(
@@ -2193,7 +2404,7 @@ def main():
                     threat_data = pd.DataFrame({
                         'Matchup': matchup_labels,
                         'Threat Level': [r.get('advanced_stats', {}).get('meta_scoring', {}).get('threat_level', 0)
-                                        for r in st.session_state.benchmark_results]
+                                        for r in filtered_results]
                     })
 
                     fig2 = px.bar(
@@ -2211,7 +2422,7 @@ def main():
                 st.subheader("🎯 META Ratings Comparison")
 
                 meta_comparison_data = []
-                for i, result in enumerate(st.session_state.benchmark_results):
+                for i, result in enumerate(filtered_results):
                     adv_stats = result.get('advanced_stats', {})
                     meta_comparison_data.append({
                         'Matchup': matchup_labels[i],
@@ -2237,13 +2448,13 @@ def main():
 
                 # Point efficiency comparison (if available)
                 has_points = any(r.get('attacker_points', 0) > 0 and r.get('defender_points', 0) > 0
-                                for r in st.session_state.benchmark_results)
+                                for r in filtered_results)
 
                 if has_points:
                     st.subheader("💰 Point Efficiency Analysis")
 
                     efficiency_data = []
-                    for i, result in enumerate(st.session_state.benchmark_results):
+                    for i, result in enumerate(filtered_results):
                         adv_stats = result.get('advanced_stats', {})
                         points_ratio = adv_stats.get('meta_scoring', {}).get('points_trade_ratio', 0)
                         if points_ratio > 0:
@@ -2277,9 +2488,9 @@ def main():
                 summary_col1, summary_col2, summary_col3 = st.columns(3)
 
                 # Find best damage output
-                best_damage_idx = max(range(len(st.session_state.benchmark_results)),
-                                     key=lambda i: st.session_state.benchmark_results[i]['avg_damage'])
-                best_damage = st.session_state.benchmark_results[best_damage_idx]
+                best_damage_idx = max(range(len(filtered_results)),
+                                     key=lambda i: filtered_results[i]['avg_damage'])
+                best_damage = filtered_results[best_damage_idx]
 
                 with summary_col1:
                     st.metric(
@@ -2289,9 +2500,9 @@ def main():
                     )
 
                 # Find most consistent
-                best_consistency_idx = max(range(len(st.session_state.benchmark_results)),
-                                          key=lambda i: st.session_state.benchmark_results[i].get('advanced_stats', {}).get('consistency', {}).get('consistency_score', 0))
-                best_consistency = st.session_state.benchmark_results[best_consistency_idx]
+                best_consistency_idx = max(range(len(filtered_results)),
+                                          key=lambda i: filtered_results[i].get('advanced_stats', {}).get('consistency', {}).get('consistency_score', 0))
+                best_consistency = filtered_results[best_consistency_idx]
 
                 with summary_col2:
                     consistency_score = best_consistency.get('advanced_stats', {}).get('consistency', {}).get('consistency_score', 0)
@@ -2303,9 +2514,9 @@ def main():
 
                 # Find best value (if points available)
                 if has_points:
-                    best_value_idx = max(range(len(st.session_state.benchmark_results)),
-                                        key=lambda i: st.session_state.benchmark_results[i].get('advanced_stats', {}).get('meta_scoring', {}).get('points_trade_ratio', 0))
-                    best_value = st.session_state.benchmark_results[best_value_idx]
+                    best_value_idx = max(range(len(filtered_results)),
+                                        key=lambda i: filtered_results[i].get('advanced_stats', {}).get('meta_scoring', {}).get('points_trade_ratio', 0))
+                    best_value = filtered_results[best_value_idx]
                     points_ratio = best_value.get('advanced_stats', {}).get('meta_scoring', {}).get('points_trade_ratio', 0)
 
                     with summary_col3:
