@@ -123,6 +123,13 @@ class RosterParser:
 
     def _parse_force(self, force: Dict):
         """Parse a force (detachment) from the roster"""
+        # Extract faction name from force catalogueName (e.g., "Chaos - Death Guard")
+        catalogue_name = force.get('catalogueName', '')
+        if catalogue_name:
+            # Remove prefix like "Chaos - " to get just "Death Guard"
+            faction_name = catalogue_name.split(' - ')[-1] if ' - ' in catalogue_name else catalogue_name
+            self.roster.faction = faction_name
+
         selections = force.get('selections', [])
 
         for selection in selections:

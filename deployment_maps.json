@@ -65,40 +65,33 @@
     },
 
     "search_and_destroy": {
-      "name": "Search and Destroy",
-      "description": "Diagonal deployment zones. 9\" from each corner.",
-      "battlefield_size": [44, 60],
-      "player_1_zone": {
-        "shape": "triangle",
-        "vertices": [
-          [0, 0],
-          [22, 0],
-          [0, 30]
-        ],
-        "description": "Bottom-left corner, 9\" diagonal"
+    "name": "Search and Destroy",
+    "description": "Table quarters with a 9\" no-deploy circle around the center of the battlefield.",
+    "battlefield_size": [44, 60],
+
+    "player_1_zone": {
+      "shape": "compound",
+      "description": "Bottom-left quarter (minus center exclusion circle)",
+      "bounds": {
+        "rectangles": [
+          { "x_min": 0, "x_max": 22, "y_min": 0, "y_max": 30 }
+        ]
       },
-      "player_2_zone": {
-        "shape": "triangle",
-        "vertices": [
-          [44, 60],
-          [22, 60],
-          [44, 30]
-        ],
-        "description": "Top-right corner, 9\" diagonal"
-      },
-      "simplified_bounds": {
-        "player_1": {
-          "description": "Models must be within 9\" of bottom-left corner (0,0)",
-          "center": [0, 0],
-          "radius": 18
-        },
-        "player_2": {
-          "description": "Models must be within 9\" of top-right corner (44,60)",
-          "center": [44, 60],
-          "radius": 18
-        }
-      }
+      "cutout_circle": { "center": [22, 30], "radius": 9 }
     },
+
+    "player_2_zone": {
+      "shape": "compound",
+      "description": "Top-right quarter (minus center exclusion circle)",
+      "bounds": {
+        "rectangles": [
+          { "x_min": 22, "x_max": 44, "y_min": 30, "y_max": 60 }
+        ]
+      },
+      "cutout_circle": { "center": [22, 30], "radius": 9 }
+    }
+  },
+
 
     "sweeping_engagement": {
       "name": "Sweeping Engagement",

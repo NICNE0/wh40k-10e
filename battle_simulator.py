@@ -608,7 +608,8 @@ class BattleSimulator:
 
         self._log_event("deployment", deployment_msg)
 
-    def simulate_battle(self, max_turns: int = 5, p1_deployment_zone=None, p2_deployment_zone=None) -> Dict:
+    def simulate_battle(self, max_turns: int = 5, p1_deployment_zone=None, p2_deployment_zone=None,
+                        p1_army_name: str = "Player 1", p2_army_name: str = "Player 2") -> Dict:
         """
         Simulate a full battle
 
@@ -616,10 +617,16 @@ class BattleSimulator:
             max_turns: Maximum number of turns to play
             p1_deployment_zone: Optional DeploymentZone for player 1
             p2_deployment_zone: Optional DeploymentZone for player 2
+            p1_army_name: Name of player 1's army
+            p2_army_name: Name of player 2's army
 
         Returns:
             Battle results dictionary
         """
+        # Store army names for winner determination
+        self.p1_army_name = p1_army_name
+        self.p2_army_name = p2_army_name
+
         self.deploy_armies(p1_deployment_zone, p2_deployment_zone)
 
         for turn in range(1, max_turns + 1):
@@ -990,19 +997,22 @@ class BattleSimulator:
 
     def _determine_winner(self) -> str:
         """Determine battle winner"""
+        p1_name = getattr(self, 'p1_army_name', 'Player 1')
+        p2_name = getattr(self, 'p2_army_name', 'Player 2')
+
         if self.state.player_1_vp > self.state.player_2_vp:
-            return "Player 1"
+            return p1_name
         elif self.state.player_2_vp > self.state.player_1_vp:
-            return "Player 2"
+            return p2_name
         else:
             # Tie-breaker: most points remaining
             p1_pts = sum(u.points_cost for u in self.player_1_units if not u.is_destroyed())
             p2_pts = sum(u.points_cost for u in self.player_2_units if not u.is_destroyed())
 
             if p1_pts > p2_pts:
-                return "Player 1"
+                return p1_name
             elif p2_pts > p1_pts:
-                return "Player 2"
+                return p2_name
             else:
                 return "Draw"
 

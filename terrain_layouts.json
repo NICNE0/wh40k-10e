@@ -4,19 +4,19 @@
       "width": 6,
       "length": 4,
       "typical_height": 2,
-      "description": "Small ruins or scatter terrain"
+      "description": "Small ruins or scatter terrain (6\" x 4\")"
     },
     "medium": {
       "width": 10,
       "length": 5,
       "typical_height": 4,
-      "description": "Medium ruins"
+      "description": "Medium ruins (10\" x 5\")"
     },
     "large": {
       "width": 12,
       "length": 6,
       "typical_height": 5,
-      "description": "Large ruins or obscuring terrain"
+      "description": "Large ruins or obscuring terrain (12\" x 6\")"
     }
   },
 
@@ -25,7 +25,7 @@
       "provides_cover": true,
       "save_bonus": 1,
       "obscuring_height": 5,
-      "description": "Models wholly within 3\" of a ruins wall gain +1 to saves. Obscuring if >5\" tall."
+      "description": "Models wholly within 3\" of a ruins wall gain +1 to saves. Obscuring if 5\" or taller."
     },
     "craters": {
       "provides_cover": true,
@@ -41,55 +41,69 @@
     }
   },
 
+  "note": "Official GW Chapter Approved 2025-26 specs: 6 large (12x6), 2 medium (10x5), 4 small (6x4) = 12 total pieces",
+
   "layouts": {
     "layout_1": {
-      "name": "GW Tournament Layout 1",
+      "name": "Layout 1 - L-Shaped Center",
+      "description": "Two L-shaped ruins in center with flanking terrain. Recommended for Search & Destroy, Crucible, Hammer & Anvil, Tipping Point",
       "battlefield_size": [44, 60],
       "pieces": [
         {
           "type": "large",
-          "position": [22, 30],
+          "position": [18, 28],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 5,
           "obscuring": true,
-          "note": "Center large ruin"
+          "note": "Left L-shape part 1"
         },
         {
           "type": "medium",
-          "position": [11, 15],
-          "rotation": 0,
+          "position": [14, 34],
+          "rotation": 90,
           "terrain_type": "ruins",
           "height": 4,
-          "obscuring": false
-        },
-        {
-          "type": "medium",
-          "position": [33, 15],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 4,
-          "obscuring": false
-        },
-        {
-          "type": "small",
-          "position": [11, 45],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 2,
-          "obscuring": false
-        },
-        {
-          "type": "small",
-          "position": [33, 45],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 2,
-          "obscuring": false
+          "obscuring": false,
+          "note": "Left L-shape part 2"
         },
         {
           "type": "large",
-          "position": [8, 30],
+          "position": [26, 32],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true,
+          "note": "Right L-shape part 1"
+        },
+        {
+          "type": "medium",
+          "position": [30, 26],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false,
+          "note": "Right L-shape part 2"
+        },
+        {
+          "type": "large",
+          "position": [8, 15],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [36, 45],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [8, 48],
           "rotation": 90,
           "terrain_type": "ruins",
           "height": 5,
@@ -97,7 +111,7 @@
         },
         {
           "type": "large",
-          "position": [36, 30],
+          "position": [36, 12],
           "rotation": 90,
           "terrain_type": "ruins",
           "height": 5,
@@ -105,7 +119,23 @@
         },
         {
           "type": "small",
-          "position": [22, 12],
+          "position": [22, 10],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 50],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [5, 30],
           "rotation": 0,
           "terrain_type": "craters",
           "height": 0,
@@ -113,74 +143,37 @@
         },
         {
           "type": "small",
-          "position": [22, 48],
+          "position": [39, 30],
           "rotation": 0,
           "terrain_type": "craters",
           "height": 0,
-          "obscuring": false
-        },
-        {
-          "type": "large",
-          "position": [15, 38],
-          "rotation": 45,
-          "terrain_type": "ruins",
-          "height": 5,
-          "obscuring": true
-        },
-        {
-          "type": "large",
-          "position": [29, 22],
-          "rotation": 45,
-          "terrain_type": "ruins",
-          "height": 5,
-          "obscuring": true
-        },
-        {
-          "type": "medium",
-          "position": [5, 50],
-          "rotation": 0,
-          "terrain_type": "woods",
-          "height": 3,
           "obscuring": false
         }
       ]
     },
 
     "layout_2": {
-      "name": "GW Tournament Layout 2",
+      "name": "Layout 2 - Central Corridor",
+      "description": "Strong center line with flanking terrain",
       "battlefield_size": [44, 60],
       "pieces": [
         {
           "type": "large",
-          "position": [22, 24],
+          "position": [22, 22],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 5,
-          "obscuring": true
+          "obscuring": true,
+          "note": "Center bottom"
         },
         {
           "type": "large",
-          "position": [22, 36],
+          "position": [22, 38],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 5,
-          "obscuring": true
-        },
-        {
-          "type": "medium",
-          "position": [10, 12],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 4,
-          "obscuring": false
-        },
-        {
-          "type": "medium",
-          "position": [34, 48],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 4,
-          "obscuring": false
+          "obscuring": true,
+          "note": "Center top"
         },
         {
           "type": "large",
@@ -188,7 +181,8 @@
           "rotation": 90,
           "terrain_type": "ruins",
           "height": 5,
-          "obscuring": true
+          "obscuring": true,
+          "note": "Left flank"
         },
         {
           "type": "large",
@@ -196,50 +190,12 @@
           "rotation": 90,
           "terrain_type": "ruins",
           "height": 5,
-          "obscuring": true
+          "obscuring": true,
+          "note": "Right flank"
         },
-        {
-          "type": "small",
-          "position": [14, 45],
-          "rotation": 0,
-          "terrain_type": "craters",
-          "height": 0,
-          "obscuring": false
-        },
-        {
-          "type": "small",
-          "position": [30, 15],
-          "rotation": 0,
-          "terrain_type": "craters",
-          "height": 0,
-          "obscuring": false
-        },
-        {
-          "type": "small",
-          "position": [18, 8],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 2,
-          "obscuring": false
-        },
-        {
-          "type": "small",
-          "position": [26, 52],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 2,
-          "obscuring": false
-        }
-      ]
-    },
-
-    "layout_3": {
-      "name": "GW Tournament Layout 3 - Balanced Spread",
-      "battlefield_size": [44, 60],
-      "pieces": [
         {
           "type": "large",
-          "position": [11, 20],
+          "position": [10, 12],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 5,
@@ -247,23 +203,7 @@
         },
         {
           "type": "large",
-          "position": [33, 40],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 5,
-          "obscuring": true
-        },
-        {
-          "type": "large",
-          "position": [11, 40],
-          "rotation": 0,
-          "terrain_type": "ruins",
-          "height": 5,
-          "obscuring": true
-        },
-        {
-          "type": "large",
-          "position": [33, 20],
+          "position": [34, 48],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 5,
@@ -271,11 +211,108 @@
         },
         {
           "type": "medium",
-          "position": [22, 10],
+          "position": [10, 48],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 4,
           "obscuring": false
+        },
+        {
+          "type": "medium",
+          "position": [34, 12],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [16, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [28, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 8],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 52],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        }
+      ]
+    },
+
+    "layout_3": {
+      "name": "Layout 3 - Diagonal Cross",
+      "description": "Diagonal terrain placement with center LOS blocker",
+      "battlefield_size": [44, 60],
+      "pieces": [
+        {
+          "type": "large",
+          "position": [22, 30],
+          "rotation": 45,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true,
+          "note": "Center LOS blocker"
+        },
+        {
+          "type": "large",
+          "position": [11, 18],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [33, 42],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [11, 42],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [33, 18],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 10],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
         },
         {
           "type": "medium",
@@ -286,13 +323,133 @@
           "obscuring": false
         },
         {
-          "type": "large",
+          "type": "medium",
+          "position": [5, 30],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [39, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [17, 8],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [27, 52],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
           "position": [22, 30],
+          "rotation": 0,
+          "terrain_type": "woods",
+          "height": 3,
+          "obscuring": false,
+          "note": "Low woods for light cover"
+        }
+      ]
+    },
+
+    "layout_4": {
+      "name": "Layout 4 - Fortress Center",
+      "description": "Heavy center terrain with corner accents",
+      "battlefield_size": [44, 60],
+      "pieces": [
+        {
+          "type": "large",
+          "position": [18, 26],
           "rotation": 0,
           "terrain_type": "ruins",
           "height": 5,
-          "obscuring": true,
-          "note": "Center LOS blocker"
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [26, 34],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [18, 34],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [26, 26],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [7, 10],
+          "rotation": 45,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [37, 50],
+          "rotation": 45,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "medium",
+          "position": [37, 10],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "medium",
+          "position": [7, 50],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 12],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 48],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
         },
         {
           "type": "small",
@@ -308,6 +465,423 @@
           "rotation": 0,
           "terrain_type": "craters",
           "height": 0,
+          "obscuring": false
+        }
+      ]
+    },
+
+    "layout_5": {
+      "name": "Layout 5 - Flanking Ruins",
+      "description": "Heavy flank terrain with open center",
+      "battlefield_size": [44, 60],
+      "pieces": [
+        {
+          "type": "large",
+          "position": [8, 20],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [8, 40],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [36, 20],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [36, 40],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 15],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 45],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "medium",
+          "position": [14, 30],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "medium",
+          "position": [30, 30],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 8],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 52],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 30],
+          "rotation": 0,
+          "terrain_type": "woods",
+          "height": 3,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [5, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        }
+      ]
+    },
+
+    "layout_6": {
+      "name": "Layout 6 - Symmetrical Spread",
+      "description": "Balanced symmetrical terrain placement",
+      "battlefield_size": [44, 60],
+      "pieces": [
+        {
+          "type": "large",
+          "position": [11, 15],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [33, 15],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [11, 45],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [33, 45],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 25],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 35],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "medium",
+          "position": [6, 30],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "medium",
+          "position": [38, 30],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 10],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 50],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [11, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [33, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        }
+      ]
+    },
+
+    "layout_7": {
+      "name": "Layout 7 - Urban Ruins",
+      "description": "Dense urban terrain with multiple LOS blockers",
+      "battlefield_size": [44, 60],
+      "pieces": [
+        {
+          "type": "large",
+          "position": [14, 22],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [30, 22],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [14, 38],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [30, 38],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 12],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 48],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "medium",
+          "position": [6, 18],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "medium",
+          "position": [38, 42],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [6, 42],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [38, 18],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 30],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [8, 30],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        }
+      ]
+    },
+
+    "layout_8": {
+      "name": "Layout 8 - Open Battlefield",
+      "description": "Lighter terrain density with strategic LOS blockers",
+      "battlefield_size": [44, 60],
+      "pieces": [
+        {
+          "type": "large",
+          "position": [22, 30],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true,
+          "note": "Center LOS blocker"
+        },
+        {
+          "type": "large",
+          "position": [10, 14],
+          "rotation": 45,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [34, 46],
+          "rotation": 45,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [10, 46],
+          "rotation": 135,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [34, 14],
+          "rotation": 135,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "large",
+          "position": [22, 10],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 5,
+          "obscuring": true
+        },
+        {
+          "type": "medium",
+          "position": [22, 50],
+          "rotation": 90,
+          "terrain_type": "ruins",
+          "height": 4,
+          "obscuring": false
+        },
+        {
+          "type": "medium",
+          "position": [6, 30],
+          "rotation": 0,
+          "terrain_type": "woods",
+          "height": 3,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [38, 30],
+          "rotation": 0,
+          "terrain_type": "woods",
+          "height": 3,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [14, 30],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [30, 30],
+          "rotation": 0,
+          "terrain_type": "craters",
+          "height": 0,
+          "obscuring": false
+        },
+        {
+          "type": "small",
+          "position": [22, 20],
+          "rotation": 0,
+          "terrain_type": "ruins",
+          "height": 2,
           "obscuring": false
         }
       ]
