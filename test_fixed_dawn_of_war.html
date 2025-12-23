@@ -1,0 +1,266 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                background-color: #0e0e0e;
+                overflow: hidden;
+            }
+            #battlefield {
+                display: block;
+                margin: 0 auto;
+                background-color: #1a1a1a;
+                cursor: crosshair;
+                width: 1080px;
+                height: 792px;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="battlefield" width="1200" height="880"></canvas>
+
+        <script>
+            const canvas = document.getElementById('battlefield');
+            const ctx = canvas.getContext('2d');
+
+            // Data from Python
+            const terrain = [{"name": "Ruins-1", "x": 560, "y": 520, "width": 120, "height": 240, "color": "#969632", "border": "red", "blocks_los": true, "terrain_height": 5, "rotation": 0}, {"name": "Ruins-2", "x": 680, "y": 600, "width": 100, "height": 200, "color": "#64c864", "border": "gray", "blocks_los": false, "terrain_height": 4, "rotation": 90}, {"name": "Ruins-3", "x": 640, "y": 360, "width": 120, "height": 240, "color": "#969632", "border": "red", "blocks_los": true, "terrain_height": 5, "rotation": 0}, {"name": "Ruins-4", "x": 520, "y": 280, "width": 100, "height": 200, "color": "#64c864", "border": "gray", "blocks_los": false, "terrain_height": 4, "rotation": 90}, {"name": "Ruins-5", "x": 300, "y": 720, "width": 120, "height": 240, "color": "#969632", "border": "red", "blocks_los": true, "terrain_height": 5, "rotation": 0}, {"name": "Ruins-6", "x": 900, "y": 160, "width": 120, "height": 240, "color": "#969632", "border": "red", "blocks_los": true, "terrain_height": 5, "rotation": 0}, {"name": "Ruins-7", "x": 960, "y": 720, "width": 120, "height": 240, "color": "#969632", "border": "red", "blocks_los": true, "terrain_height": 5, "rotation": 90}, {"name": "Ruins-8", "x": 240, "y": 160, "width": 120, "height": 240, "color": "#969632", "border": "red", "blocks_los": true, "terrain_height": 5, "rotation": 90}, {"name": "Ruins-9", "x": 200, "y": 440, "width": 80, "height": 120, "color": "#64c864", "border": "gray", "blocks_los": false, "terrain_height": 2, "rotation": 0}, {"name": "Ruins-10", "x": 1000, "y": 440, "width": 80, "height": 120, "color": "#64c864", "border": "gray", "blocks_los": false, "terrain_height": 2, "rotation": 0}, {"name": "Craters-11", "x": 600, "y": 780, "width": 80, "height": 120, "color": "#64c864", "border": "gray", "blocks_los": false, "terrain_height": 0, "rotation": 0}, {"name": "Craters-12", "x": 600, "y": 100, "width": 80, "height": 120, "color": "#64c864", "border": "gray", "blocks_los": false, "terrain_height": 0, "rotation": 0}];
+            const objectives = [{"name": "center", "x": 600, "y": 440, "color": "gold"}, {"name": "left_mid", "x": 600, "y": 660, "color": "gold"}, {"name": "right_mid", "x": 600, "y": 220, "color": "gold"}, {"name": "player_1_home", "x": 300, "y": 440, "color": "gold"}, {"name": "player_2_home", "x": 900, "y": 440, "color": "gold"}];
+            const p1_zone = {"type": "rectangle", "x": 120.0, "y": 440.0, "width": 240, "height": 880, "color": "cyan", "label": "Player 1"};
+            const p2_zone = {"type": "rectangle", "x": 1080.0, "y": 440.0, "width": 240, "height": 880, "color": "orange", "label": "Player 2"};
+            const p1_units = [];
+            const p2_units = [];
+
+            const CANVAS_WIDTH = 1200;
+            const CANVAS_HEIGHT = 880;
+            const PIXELS_PER_INCH = 20;
+
+            function drawBattlefield() {
+                // Clear canvas
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // Draw battlefield border
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // Draw deployment zones
+                function drawZone(zone) {
+                    if (!zone) return;
+
+                    ctx.save();
+                    ctx.globalAlpha = 0.15;
+                    ctx.fillStyle = zone.color;
+                    ctx.strokeStyle = zone.color;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([10, 5]);
+
+                    if (zone.type === 'rectangle') {
+                        ctx.fillRect(zone.x - zone.width/2, zone.y - zone.height/2, zone.width, zone.height);
+                        ctx.strokeRect(zone.x - zone.width/2, zone.y - zone.height/2, zone.width, zone.height);
+                    } else if (zone.type === 'compound') {
+                        zone.rectangles.forEach(r => {
+                            ctx.fillRect(r.x - r.width/2, r.y - r.height/2, r.width, r.height);
+                            ctx.strokeRect(r.x - r.width/2, r.y - r.height/2, r.width, r.height);
+                        });
+                    } else if (zone.type === 'polygon') {
+                        ctx.beginPath();
+                        ctx.moveTo(zone.points[0].x, zone.points[0].y);
+                        for (let i = 1; i < zone.points.length; i++) {
+                            ctx.lineTo(zone.points[i].x, zone.points[i].y);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
+
+                drawZone(p1_zone);
+                drawZone(p2_zone);
+
+                // Draw terrain
+                terrain.forEach(t => {
+                    ctx.save();
+
+                    // Draw rectangle
+                    ctx.fillStyle = t.color;
+                    ctx.globalAlpha = 0.6;
+                    ctx.fillRect(t.x - t.width/2, t.y - t.height/2, t.width, t.height);
+
+                    ctx.globalAlpha = 1.0;
+                    ctx.strokeStyle = t.border;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(t.x - t.width/2, t.y - t.height/2, t.width, t.height);
+
+                    // Label
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(t.x - 50, t.y - 20, 100, 40);
+
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(t.name, t.x, t.y - 5);
+                    if (t.blocks_los) {
+                        ctx.font = '10px Arial';
+                        ctx.fillText(t.terrain_height + '" (LOS)', t.x, t.y + 8);
+                    }
+
+                    ctx.restore();
+                });
+
+                // Draw objectives
+                objectives.forEach(obj => {
+                    ctx.save();
+
+                    // Star shape
+                    const spikes = 5;
+                    const outerRadius = 10;
+                    const innerRadius = 5;
+
+                    ctx.beginPath();
+                    for (let i = 0; i < spikes * 2; i++) {
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const angle = (Math.PI / spikes) * i - Math.PI / 2;
+                        const x = obj.x + Math.cos(angle) * radius;
+                        const y = obj.y + Math.sin(angle) * radius;
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.closePath();
+
+                    ctx.fillStyle = obj.color;
+                    ctx.fill();
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Label
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(obj.name, obj.x, obj.y - 15);
+
+                    ctx.restore();
+                });
+
+                // Draw units
+                function drawUnits(units, fillColor, borderColor, labelColor, labelOffset) {
+                    units.forEach(unit => {
+                        ctx.save();
+
+                        // Circle
+                        const radius = unit.is_character ? 7.5 : 6;
+                        ctx.beginPath();
+                        ctx.arc(unit.x, unit.y, radius, 0, Math.PI * 2);
+                        ctx.fillStyle = fillColor;
+                        ctx.globalAlpha = 0.8;
+                        ctx.fill();
+
+                        ctx.globalAlpha = 1.0;
+                        ctx.strokeStyle = unit.in_melee ? 'yellow' : borderColor;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        // Label
+                        ctx.fillStyle = labelColor;
+                        ctx.font = '10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = labelOffset > 0 ? 'top' : 'bottom';
+                        ctx.fillText(unit.name, unit.x, unit.y + labelOffset);
+                        ctx.fillText('(' + unit.models + ')', unit.x, unit.y + labelOffset + 12 * (labelOffset > 0 ? 1 : -1));
+
+                        ctx.restore();
+                    });
+                }
+
+                drawUnits(p1_units, 'blue', 'white', 'lightblue', -10);
+                drawUnits(p2_units, 'red', 'white', 'lightcoral', 10);
+
+                // Draw zone labels LAST (on top of everything)
+                function drawZoneLabel(zone) {
+                    if (!zone) return;
+
+                    const labelX = zone.label_x || zone.x;
+                    const labelY = zone.label_y || zone.y;
+
+                    ctx.save();
+
+                    // Background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(labelX - 80, labelY - 20, 160, 40);
+
+                    // Border
+                    ctx.strokeStyle = zone.color;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([]);
+                    ctx.strokeRect(labelX - 80, labelY - 20, 160, 40);
+
+                    // Text
+                    ctx.fillStyle = zone.color;
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(zone.label, labelX, labelY);
+
+                    ctx.restore();
+                }
+
+                drawZoneLabel(p1_zone);
+                drawZoneLabel(p2_zone);
+
+                // Grid lines (optional)
+                ctx.save();
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 0.5;
+                ctx.globalAlpha = 0.3;
+
+                // Vertical lines every 6" (120px)
+                for (let x = PIXELS_PER_INCH * 6; x < CANVAS_WIDTH; x += PIXELS_PER_INCH * 6) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, CANVAS_HEIGHT);
+                    ctx.stroke();
+                }
+
+                // Horizontal lines every 6" (120px)
+                for (let y = PIXELS_PER_INCH * 6; y < CANVAS_HEIGHT; y += PIXELS_PER_INCH * 6) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(CANVAS_WIDTH, y);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            // Draw on load
+            drawBattlefield();
+
+            // Mouse interaction (show coordinates on hover)
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Convert to battlefield inches (swap back)
+                const bf_y = (x / PIXELS_PER_INCH).toFixed(1);
+                const bf_x = ((CANVAS_HEIGHT - y) / PIXELS_PER_INCH).toFixed(1);
+
+                canvas.title = `Position: (x=${bf_x}\", y=${bf_y}\")`;
+            });
+        </script>
+    </body>
+    </html>
+    

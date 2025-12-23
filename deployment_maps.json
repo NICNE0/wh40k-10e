@@ -7,29 +7,28 @@
       "player_1_zone": {
         "shape": "rectangle",
         "bounds": {
-          "x_min": 0,
-          "x_max": 12,
-          "y_min": 0,
-          "y_max": 60
-        },
+          "x_min": 0, 
+          "x_max": 44, 
+          "y_min": 0, 
+          "y_max": 12},
         "description": "12\" from left edge"
       },
       "player_2_zone": {
         "shape": "rectangle",
         "bounds": {
-          "x_min": 32,
+          "x_min": 0,
           "x_max": 44,
-          "y_min": 0,
+          "y_min": 48,
           "y_max": 60
         },
         "description": "12\" from right edge"
       },
       "no_mans_land": {
-        "x_min": 12,
-        "x_max": 32,
-        "y_min": 0,
-        "y_max": 60
-      }
+      "x_min": 0,
+      "x_max": 44,
+      "y_min": 12,
+      "y_max": 48
+    }
     },
 
     "dawn_of_war": {

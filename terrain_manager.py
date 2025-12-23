@@ -134,10 +134,16 @@ class TerrainManager:
         p1_data = map_data['player_1_zone']
         p2_data = map_data['player_2_zone']
 
-        # Handle simplified bounds for diagonal deployments
-        if 'simplified_bounds' in map_data:
-            p1_bounds = map_data['simplified_bounds']['player_1']
-            p2_bounds = map_data['simplified_bounds']['player_2']
+        # Handle triangle deployments - use vertices from player data
+        if p1_data['shape'] == 'triangle' and 'vertices' in p1_data:
+            # Store vertices in bounds dict for visualization
+            p1_bounds = {'vertices': p1_data['vertices']}
+            p2_bounds = {'vertices': p2_data['vertices']}
+
+            # Also store simplified bounds if available (for position validation)
+            if 'simplified_bounds' in map_data:
+                p1_bounds['simplified'] = map_data['simplified_bounds']['player_1']
+                p2_bounds['simplified'] = map_data['simplified_bounds']['player_2']
 
             p1_zone = DeploymentZone(
                 name=f"{map_data['name']} - Player 1",

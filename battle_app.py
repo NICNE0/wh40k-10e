@@ -5,6 +5,7 @@ Includes batch simulation and comprehensive analytics
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
@@ -21,6 +22,7 @@ from battle_simulator import (
 from roster_parser import parse_roster, Roster
 from roster_to_battle import convert_roster_to_battle_units
 from terrain_manager import TerrainManager
+from battlefield_canvas import create_battlefield_canvas
 
 
 # Page config
@@ -57,8 +59,25 @@ def create_battlefield_visualization(battlefield: Battlefield,
                                      p2_deployment_zone=None,
                                      p1_army_name: str = "Player 1",
                                      p2_army_name: str = "Player 2",
+                                     show_units: bool = True):
+    """Create interactive battlefield map using HTML5 Canvas - pixel-perfect proportions"""
+
+    return create_battlefield_canvas(
+        battlefield, player_1_units, player_2_units,
+        p1_deployment_zone, p2_deployment_zone,
+        p1_army_name, p2_army_name, show_units
+    )
+
+
+def _old_create_battlefield_visualization_plotly_DEPRECATED(battlefield: Battlefield,
+                                     player_1_units: List[BattleUnit] = None,
+                                     player_2_units: List[BattleUnit] = None,
+                                     p1_deployment_zone=None,
+                                     p2_deployment_zone=None,
+                                     p1_army_name: str = "Player 1",
+                                     p2_army_name: str = "Player 2",
                                      show_units: bool = True) -> go.Figure:
-    """Create interactive battlefield map"""
+    """OLD PLOTLY VERSION - DO NOT USE - kept for reference only"""
 
     fig = go.Figure()
 
@@ -340,23 +359,23 @@ def create_battlefield_visualization(battlefield: Battlefield,
                 showlegend=False
             )
 
-    # Layout - maintain proper aspect ratio (44" × 60" battlefield)
+    # Layout - maintain proper aspect ratio (60" × 44" battlefield)
     # Calculate height based on aspect ratio to prevent stretching
-    aspect_ratio = battlefield.length / battlefield.width  # 60/44 = 1.36
+    aspect_ratio = battlefield.length / battlefield.width  # 44/60 ~= 0.73
     fig_width = 700
     fig_height = int(fig_width * aspect_ratio)
 
     fig.update_layout(
         title="Battlefield Map",
         xaxis=dict(
-            title="Width (inches)",
+            title="X (long edge, inches)",
             range=[0, battlefield.width],
             showgrid=True,
             scaleanchor="y",
             scaleratio=1
         ),
         yaxis=dict(
-            title="Length (inches)",
+            title="Y (short edge, inches)",
             range=[0, battlefield.length],
             showgrid=True,
             constrain="domain"
@@ -376,19 +395,27 @@ def run_single_battle(p1_units, p2_units, p1_army_name, p2_army_name,
                       selected_terrain, selected_deployment, selected_objectives, max_turns=5):
     """Run a single battle simulation"""
     # Create battlefield
-    battlefield = Battlefield(width=44.0, length=60.0)
+    # Refactored convention: x-axis = long edge (60") and y-axis = short edge (44").
+    battlefield = Battlefield()
 
     # Initialize terrain manager
     terrain_mgr = TerrainManager()
 
     # Load terrain layout
+    # NOTE: Terrain JSON still uses legacy convention (x=short edge, y=long edge).
+    # Swap to match refactored convention (x=old_y, y=old_x) at runtime.
+    def _swap_xy_pos(pos: Position) -> None:
+        pos.x, pos.y = pos.y, pos.x
+
     terrain_features = terrain_mgr.get_terrain_layout(selected_terrain)
     for feature in terrain_features:
+        _swap_xy_pos(feature.center)
         battlefield.add_terrain(feature)
 
     # Load objectives
     objectives = terrain_mgr.get_objectives(selected_objectives)
     for obj in objectives:
+        _swap_xy_pos(obj.position)
         battlefield.add_objective(obj)
 
     # Get deployment zones
@@ -960,17 +987,20 @@ def main():
             p2_army_name=p2_army_name,
             show_units=True
         )
-        battlefield_fig.update_layout(
-            title=f"Battle Results: {battle_data['results']['winner']}"
-        )
+        # Canvas visualization returns an HTML string (no figure object to mutate).
+        st.subheader(f"Battle Results: {battle_data['results']['winner']}")
     else:
         # Preview mode - no units
-        preview_battlefield = Battlefield(width=44.0, length=60.0)
+        preview_battlefield = Battlefield()
+        def _swap_xy_pos(pos: Position) -> None:
+            pos.x, pos.y = pos.y, pos.x
         terrain_features = terrain_mgr.get_terrain_layout(selected_terrain)
         for feature in terrain_features:
+            _swap_xy_pos(feature.center)
             preview_battlefield.add_terrain(feature)
         objectives = terrain_mgr.get_objectives(selected_objectives)
         for obj in objectives:
+            _swap_xy_pos(obj.position)
             preview_battlefield.add_objective(obj)
         p1_preview_zone, p2_preview_zone = terrain_mgr.get_deployment_map(selected_deployment)
 
@@ -984,12 +1014,13 @@ def main():
             p2_army_name=p2_army_name,
             show_units=False
         )
-        battlefield_fig.update_layout(
-            title=f"Mission: {selected_deployment_name} | Terrain: {selected_terrain_name}"
-        )
+        pass  # Canvas visualization doesn't have a title property
 
-    # Display the single battlefield map
-    st.plotly_chart(battlefield_fig, use_container_width=True)
+    # Display the single battlefield map using HTML5 Canvas (pixel-perfect rendering)
+    # battlefield_fig is now an HTML string with embedded canvas
+    # Canvas is rendered at 90% size: 1080px wide × 792px tall (HORIZONTAL/LANDSCAPE layout)
+    display_height = 792 + 50  # 842px total (canvas + small margin)
+    components.html(battlefield_fig, height=display_height, scrolling=False)
 
     # Show mission details (only in preview mode)
     if st.session_state.battle_results is None:

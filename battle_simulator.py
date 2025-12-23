@@ -92,11 +92,19 @@ class Objective:
 class Battlefield:
     """The battlefield with terrain and objectives"""
 
-    def __init__(self, width: float = 44.0, length: float = 60.0):
+    def __init__(self, width: float = 60.0, length: float = 44.0):
         """
         Standard 40k battlefield
-        width: 44" (default)
-        length: 60" (default)
+
+        Coordinate convention (refactored)
+        - x-axis: long edge (0–60")  -> Battlefield.width
+        - y-axis: short edge (0–44") -> Battlefield.length
+
+        Notes
+        - Older JSON/layout data in this repo may still store coordinates using
+          the legacy convention (x=short edge, y=long edge). The app layer is
+          responsible for swapping those coordinates at load time until JSON is
+          migrated.
         """
         self.width = width
         self.length = length
